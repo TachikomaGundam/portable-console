@@ -1,0 +1,44 @@
+{
+  "listen": { "host": "127.0.0.1", "port": 8090 },
+  "data_dir": "data",
+  "poll_interval_s": 1,
+  "history": { "max_samples": 720 },
+  "plugins": {
+    "system": { "enabled": true },
+    "nvidia": { "auto": true },
+    "ipmi": { "auto": true, "bmc": null },
+    "llm": { "auto": true, "non_llm_ports": [] }
+  },
+  "cards": [
+    {
+      "id": "model-a",
+      "name": "示例模型 A",
+      "icon": "gpu",
+      "timeout_s": 90,
+      "scripts": {
+        "status": "deploy/model-a/launch.sh status",
+        "start": "deploy/model-a/launch.sh start",
+        "stop": "deploy/model-a/launch.sh stop"
+      }
+    },
+    {
+      "id": "model-b",
+      "name": "示例模型 B",
+      "icon": "cpu",
+      "timeout_s": 90,
+      "scripts": {
+        "status": "deploy/model-b/ctl.sh status",
+        "start": "deploy/model-b/ctl.sh start",
+        "stop": "deploy/model-b/ctl.sh stop"
+      }
+    }
+  ],
+  "links": [
+    { "name": "Wiki", "url": "http://{host}:3000", "icon": "book" },
+    { "name": "LLM Chat (Open WebUI)", "url": "http://{host}:3001", "icon": "chat" },
+    { "name": "Frigate (Camera)", "url": "http://{host}:5000", "icon": "camera" },
+    { "name": "文件同步", "url": "http://{host}:8080", "icon": "cloud" },
+    { "name": "Authentik", "url": "http://{host}:9000", "icon": "key" },
+    { "name": "Cockpit", "url": "http://{host}:9090", "icon": "terminal" }
+  ]
+}

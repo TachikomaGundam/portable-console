@@ -1,0 +1,17 @@
+# Portable Console — 采集守护（user unit 模板）
+# 注意：%B_PLACEHOLDER 由 install.sh 用 sed 替换为 bundle 绝对路径
+#（systemd user unit 不支持 %b，故使用占位符渲染）
+
+[Unit]
+Description=Portable Console daemon (hardware metrics collector)
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/env python3 %B_PLACEHOLDER/console.py daemon run --config %B_PLACEHOLDER/console.config.json
+WorkingDirectory=%B_PLACEHOLDER
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target

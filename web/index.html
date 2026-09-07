@@ -1,0 +1,1688 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Self-Hosted Ops Console</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0b0e14;--surface:#13161d;--border:#1e2433;--accent:#22d3ee;
+  --text:#e2e8f0;--muted:#7c8598;--radius:10px;
+  --online:#34d399;--online-bg:#052e1c;
+  --stopped:#f59e0b;--stopped-bg:#2d1f05;
+  --internal:#64748b;--internal-bg:#1e293b;
+  --red:#f87171;
+}
+body{font-family:"SF Pro Display",-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;line-height:1.5}
+.mono{font-family:"SF Mono","JetBrains Mono","Cascadia Code","Fira Code",ui-monospace,monospace}
+.wrap{width:100%;max-width:1440px;margin:0 auto;padding:3rem 1.5rem}
+
+/* Header */
+header{text-align:center;margin-bottom:2rem}
+h1{font-size:1.6rem;font-weight:700;letter-spacing:-.03em;margin-bottom:.25rem}
+header p{color:var(--muted);font-size:.85rem}
+header .tag{display:inline-block;color:var(--accent);font-size:.7rem;font-weight:500;letter-spacing:.04em;text-transform:uppercase;margin-bottom:.5rem;padding:2px 10px;border:1px solid rgba(34,211,238,.25);border-radius:20px;background:rgba(34,211,238,.06)}
+
+/* How It Works */
+.how-it-works{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem 1.5rem;margin-bottom:2.25rem;position:relative}
+.how-it-works::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent);border-radius:var(--radius) var(--radius) 0 0}
+.how-it-works h2{font-size:.8rem;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.6rem;display:flex;align-items:center;gap:.5rem}
+.how-it-works h2 svg{width:16px;height:16px;stroke:var(--accent);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.how-it-works p{color:var(--muted);font-size:.82rem;line-height:1.6}
+.how-it-works code{color:var(--accent);background:rgba(34,211,238,.08);padding:.1rem .35rem;border-radius:3px;font-size:.78rem;font-family:"SF Mono","JetBrains Mono","Cascadia Code",ui-monospace,monospace}
+
+/* Sections */
+section{margin-bottom:2rem}
+.section-title{font-size:.85rem;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:.05em;padding-bottom:.5rem;border-bottom:1px solid var(--border);margin-bottom:.875rem;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}
+.section-title .emoji{font-style:normal;font-size:1rem;line-height:1}
+.section-title .sub{font-size:.68rem;color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0;margin-left:auto;font-family:"SF Mono","JetBrains Mono",ui-monospace,monospace}
+
+/* Grid */
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:.75rem}
+
+/* Cards */
+.card{display:flex;align-items:flex-start;gap:.75rem;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:.9rem 1rem;text-decoration:none;color:var(--text);transition:border-color .2s,box-shadow .2s,transform .15s}
+.card:hover,.card:focus-visible{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent),0 4px 20px -4px rgba(34,211,238,.1);outline:none;transform:translateY(-1px)}
+.card:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.card.internal{border-style:dashed}
+.card.internal:hover{border-color:var(--internal);box-shadow:0 0 0 1px var(--internal),0 4px 20px -4px rgba(100,116,139,.1)}
+
+.icon{flex-shrink:0;width:36px;height:36px;border-radius:8px;background:#0f1923;display:flex;align-items:center;justify-content:center}
+.icon svg{width:18px;height:18px;stroke:var(--accent);fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.card.internal .icon{background:#171e2b}
+.card.internal .icon svg{stroke:var(--internal)}
+
+.info{flex:1;min-width:0}
+.name{font-size:.85rem;font-weight:600;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}
+.pill{font-size:.6rem;font-weight:600;padding:1px 7px;border-radius:20px;letter-spacing:.03em;text-transform:uppercase;white-space:nowrap}
+.pill.online{color:var(--online);background:var(--online-bg)}
+.pill.stopped{color:var(--stopped);background:var(--stopped-bg)}
+.pill.internal{color:var(--internal);background:var(--internal-bg)}
+.desc{font-size:.75rem;color:var(--muted);margin-top:.25rem;line-height:1.45}
+.url{font-size:.7rem;color:var(--accent);opacity:.6;margin-top:.2rem;font-family:"SF Mono","JetBrains Mono","Cascadia Code",ui-monospace,monospace;word-break:break-all}
+
+/* System Health */
+.health-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:.75rem;align-items:stretch}
+.gpu-section-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:.75rem;align-items:start}
+.health-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:.9rem 1rem;position:relative;overflow:hidden}
+.health-card::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent);opacity:.6}
+.health-card .card-head{display:flex;align-items:center;gap:.65rem;margin-bottom:.55rem}
+.health-card .icon{flex-shrink:0;width:36px;height:36px;border-radius:8px;background:#0f1923;display:flex;align-items:center;justify-content:center}
+.health-card .icon svg{width:18px;height:18px;stroke:var(--accent);fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.health-card .card-name{font-size:.85rem;font-weight:600;color:var(--text);min-width:0;display:flex;flex-direction:column;gap:.05rem}
+.health-card .card-name .sub{font-size:.68rem;color:var(--muted);font-weight:400}
+.health-card .card-name .llm-endpoint{font-size:.6rem;color:var(--muted);font-weight:400;font-family:"SF Mono","JetBrains Mono","Cascadia Code",ui-monospace,monospace}
+.health-card .card-name .probe-result{font-size:.6rem;font-weight:500}
+.health-card .card-name .probe-result.ok{color:var(--online)}
+.health-card .card-name .probe-result.err{color:var(--stopped)}
+.health-card .probe-btn{margin-left:auto;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--muted);cursor:pointer;transition:border-color .2s,color .2s}
+.health-card .probe-btn svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.health-card .probe-btn:hover,.health-card .probe-btn:focus-visible{border-color:var(--accent);color:var(--accent);outline:none}
+.health-card .probe-btn.busy svg{animation:probe-spin 1s linear infinite}
+@keyframes probe-spin{to{transform:rotate(360deg)}}
+.health-metrics{display:grid;grid-template-columns:1fr 1fr;gap:.45rem .85rem}
+.health-metrics .metric{display:flex;flex-direction:column;gap:.1rem;min-width:0}
+.metric-label{font-size:.63rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:600}
+.metric-value{font-family:"SF Mono","JetBrains Mono","Cascadia Code",ui-monospace,monospace;font-size:.92rem;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.metric-unit{font-size:.72rem;color:var(--muted);font-weight:400;margin-left:.15rem}
+.metric-bar{height:4px;background:var(--border);border-radius:2px;overflow:hidden;margin-top:.2rem}
+.metric-bar .bar{height:100%;background:var(--online);transition:width .6s ease;border-radius:2px}
+.metric-bar .bar.amber{background:var(--stopped)}
+.metric-bar .bar.red{background:var(--red)}
+.metric-value.warn{color:var(--stopped)}
+.metric-value.crit{color:var(--red)}
+
+.health-empty{grid-column:1/-1;color:var(--muted);font-size:.78rem;font-style:italic;padding:.2rem 0}
+.metric-spark{display:inline-flex;align-items:center;cursor:pointer;opacity:.8;transition:opacity .2s;min-width:0;justify-self:start}
+.metric-spark:hover{opacity:1}
+.metric-spark svg{display:block}
+.metric-spark-gpu{display:inline-flex;align-items:center;cursor:pointer;opacity:.8;transition:opacity .2s;margin-top:.2rem;min-width:0}
+.metric-spark-gpu:hover{opacity:1}
+
+/* Transparent grid groups: children join the parent grid; the group hides as a unit */
+.metrics-group{display:contents}
+.metrics-group.is-hidden{display:none}
+
+/* Fan tiles */
+.fan-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:.45rem .65rem}
+.fan-tile{display:flex;flex-direction:column;gap:.15rem;padding:.35rem .5rem;background:var(--bg);border-radius:6px;border:1px solid var(--border)}
+.fan-tile__label{font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:600}
+.fan-tile__value{font-family:"SF Mono","JetBrains Mono","Cascadia Code",ui-monospace,monospace;font-size:.82rem;font-weight:600;color:var(--text)}
+.fan-tile__bar{height:4px;background:var(--border);border-radius:2px;overflow:hidden}
+.fan-tile__bar-fill{height:100%;border-radius:2px;background:var(--online);transition:width .6s ease}
+.fan-tile__bar-fill.amber{background:var(--stopped)}
+.fan-tile__bar-fill.red{background:var(--red)}
+
+/* Zoom Modal */
+.zoom-modal{position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;align-items:center;justify-content:center;z-index:9999;padding:2rem}
+.zoom-modal.active{display:flex}
+.zoom-modal-content{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.5rem;max-width:900px;width:100%;max-height:90vh;overflow:hidden;display:flex;flex-direction:column}
+.zoom-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem}
+.zoom-header h3{margin:0;font-size:1.1rem;font-weight:600;color:var(--text)}
+.zoom-chart-wrap{position:relative;width:100%;flex:1;min-height:0;overflow:hidden;cursor:crosshair;touch-action:none}
+.zoom-chart-wrap:active{cursor:grabbing}
+.zoom-chart-wrap svg{display:block;width:100%;height:100%}
+.zoom-stats{display:flex;gap:1.5rem;margin-top:1rem;font-size:.82rem;color:var(--muted);font-family:"SF Mono","JetBrains Mono",ui-monospace,monospace;flex-wrap:wrap}
+.zoom-stats strong{color:var(--text);font-weight:600}
+.zoom-controls{display:flex;gap:.5rem;margin-top:1rem;flex-wrap:wrap}
+.zoom-btn{padding:.4rem .9rem;border:1px solid var(--border);background:var(--bg);color:var(--text);border-radius:6px;cursor:pointer;font-size:.8rem;font-weight:500;transition:background .2s,color .2s,border-color .2s}
+.zoom-btn:hover{background:var(--accent);color:var(--bg);border-color:var(--accent)}
+
+/* Control Token Box */
+.hosts-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem;margin-top:1.5rem;text-align:center}
+.hosts-box p{color:var(--muted);font-size:.82rem;line-height:1.5;margin-bottom:.75rem}
+.hosts-box code{background:var(--bg);color:var(--accent);padding:.15rem .4rem;border-radius:4px;font-size:.8rem;font-family:"SF Mono","JetBrains Mono","Cascadia Code",ui-monospace,monospace}
+.token-row{display:flex;gap:.5rem;justify-content:center;align-items:center;flex-wrap:wrap}
+.token-input{background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:.45rem .7rem;font-size:.8rem;font-family:"SF Mono","JetBrains Mono","Cascadia Code",ui-monospace,monospace;min-width:280px}
+.token-input:focus{outline:none;border-color:var(--accent)}
+.hosts-btn{display:inline-flex;align-items:center;gap:.5rem;background:transparent;border:1px solid var(--accent);color:var(--accent);padding:.5rem 1.1rem;border-radius:var(--radius);font-size:.85rem;font-weight:500;cursor:pointer;transition:background .2s,color .2s}
+.hosts-btn:hover{background:var(--accent);color:var(--bg)}
+.hosts-btn.copied{border-color:var(--online);color:var(--online);background:var(--online-bg)}
+.hosts-btn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+
+/* Footer */
+footer{margin-top:auto;border-top:1px solid var(--border);padding:1.25rem 0 0;text-align:center}
+footer p{font-size:.72rem;color:var(--muted);line-height:1.6}
+footer a{color:var(--accent);text-decoration:none}
+footer a:hover{text-decoration:underline}
+
+/* Control cards */
+.pill.err{color:var(--red);background:rgba(248,113,113,.12)}
+.pill.busy{color:var(--accent);background:rgba(34,211,238,.1)}
+.card-actions{margin-left:auto;display:flex;gap:.4rem;flex-shrink:0}
+.ctl-btn{font-size:.68rem;font-weight:600;padding:4px 12px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);cursor:pointer;transition:border-color .2s,color .2s}
+.ctl-btn:hover,.ctl-btn:focus-visible{border-color:var(--accent);color:var(--accent);outline:none}
+.ctl-btn.danger:hover,.ctl-btn.danger:focus-visible{border-color:var(--red);color:var(--red)}
+.ctl-btn:disabled{opacity:.35;pointer-events:none}
+
+@media(max-width:920px){.health-card:last-child{grid-column:1/-1}}
+@media(max-width:640px){
+  .wrap{padding:2rem 1rem}
+  h1{font-size:1.3rem}
+  .grid{grid-template-columns:1fr}
+  .health-grid{grid-template-columns:1fr}
+  .how-it-works{padding:1rem 1.2rem}
+}
+@media(max-width:480px){
+  .metric-spark,.metric-spark-gpu{display:none}
+  .zoom-modal{padding:.5rem}
+  .zoom-modal-content{max-width:100%;max-height:100vh;padding:1rem}
+  .zoom-stats{gap:.75rem;font-size:.75rem}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="tag">Ops Console</div>
+  <h1>Self-Hosted Ops Console</h1>
+  <p id="host-line">&mdash;</p>
+</header>
+
+<!-- How It Works -->
+<div class="how-it-works">
+  <h2>
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+    Data-Driven Console
+  </h2>
+  <p>
+    Everything on this page renders from what the machine actually reports:
+    service links come from <code>/api/links</code>, and GPU / fan / power / disk / control blocks
+    appear only when the matching keys exist in <code>/health.json</code> or <code>/api/cards</code>.
+    On a plain laptop you get Server Load and links; on a GPU workstation the full telemetry appears.
+    No hostname or port is baked in &mdash; the console works on any host, via LAN, VPN, or localhost.
+  </p>
+</div>
+
+<!-- Section 0: System Health -->
+<section id="system-health">
+  <h2 class="section-title">
+    <span class="emoji">📈</span> System Health
+    <span class="sub" id="health-updated">—</span>
+  </h2>
+  <div class="health-grid">
+
+    <!-- Server Load Card (system keys — always meaningful) -->
+    <div class="health-card">
+      <div class="card-head">
+        <div class="icon"><svg viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2"/><rect x="9" y="9" width="6" height="6" rx="1"/><path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/></svg></div>
+        <div class="card-name">Server Load<span class="sub" id="cpu-sub">—</span></div>
+      </div>
+      <div class="health-metrics">
+        <div class="metric">
+          <div class="metric-label">CPU Load</div>
+          <div class="metric-value" id="load-value">—</div>
+          <div class="metric-bar"><div class="bar" id="load-bar" style="width:0%"></div></div>
+          <span class="metric-spark" id="load-spark"></span>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Uptime</div>
+          <div class="metric-value" id="uptime-value">—</div>
+        </div>
+        <div class="metric" id="ram-row">
+          <div class="metric-label">RAM</div>
+          <div class="metric-value" id="ram-value">—</div>
+          <div class="metric-bar"><div class="bar" id="ram-bar" style="width:0%"></div></div>
+          <span class="metric-spark" id="ram-spark"></span>
+        </div>
+        <div class="metric" id="swap-row">
+          <div class="metric-label">Swap</div>
+          <div class="metric-value" id="swap-value">—</div>
+          <div class="metric-bar"><div class="bar" id="swap-bar" style="width:0%"></div></div>
+          <span class="metric-spark" id="swap-spark"></span>
+        </div>
+        <!-- Disk rows rendered from health.disks[] (one row per array element) -->
+        <div class="metrics-group" id="disk-rows"></div>
+        <!-- Power rows from health.power (group hides when the key is absent) -->
+        <div class="metrics-group is-hidden" id="power-group">
+          <div class="metric">
+            <div class="metric-label">Power</div>
+            <div class="metric-value" id="power-current">&mdash;<span class="metric-unit"> W</span></div>
+            <span class="metric-spark" id="power-current-spark"></span>
+          </div>
+          <div class="metric">
+            <div class="metric-label">24h Energy</div>
+            <div class="metric-value" id="power-24h">&mdash;<span class="metric-unit"> kWh</span></div>
+            <span class="metric-spark" id="power-24h-spark"></span>
+          </div>
+          <div class="metric" style="grid-column:1/-1">
+            <div class="metric-label">30d Energy</div>
+            <div class="metric-value" id="power-30d">&mdash;<span class="metric-unit"> kWh</span></div>
+            <span class="metric-spark" id="power-30d-spark"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LLM Card (hidden until llm with a detected backend arrives) -->
+    <div class="health-card" id="llm-card" style="display:none">
+      <div class="card-head">
+        <div class="icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><circle cx="5" cy="7" r="2"/><circle cx="19" cy="7" r="2"/><circle cx="5" cy="17" r="2"/><circle cx="19" cy="17" r="2"/><path d="M9.5 10.5L6.5 8.5M14.5 10.5l3-2M9.5 13.5L6.5 15.5M14.5 13.5l3 2"/></svg></div>
+        <div class="card-name">LLM Server<span class="sub" id="llm-model">—</span><span class="llm-endpoint" id="llm-endpoint" style="display:none"></span><span class="probe-result" id="llm-probe-result" style="display:none"></span></div>
+        <button class="probe-btn" id="llm-probe" type="button" title="探测 LLM 服务" aria-label="探测 LLM 服务"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg></button>
+      </div>
+      <div class="health-metrics">
+        <div class="metric">
+          <div class="metric-label">Generation</div>
+          <div class="metric-value" id="gen-tokens">&mdash;<span class="metric-unit"> tok/s</span></div>
+          <span class="metric-spark" id="gen-spark"></span>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Prompt</div>
+          <div class="metric-value" id="prompt-tokens">&mdash;<span class="metric-unit"> tok/s</span></div>
+          <span class="metric-spark" id="prompt-spark"></span>
+        </div>
+        <div class="metric">
+          <div class="metric-label">KV Cache</div>
+          <div class="metric-value" id="kv-cache">&mdash;</div>
+          <div class="metric-bar"><div class="bar" id="kv-bar" style="width:0%"></div></div>
+          <span class="metric-spark" id="kv-spark"></span>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Queue</div>
+          <div class="metric-value" id="llm-queue">&mdash;</div>
+          <span class="metric-spark" id="queue-spark"></span>
+        </div>
+        <div class="metric" id="llm-req-row" style="display:none">
+          <div class="metric-label">Requests</div>
+          <div class="metric-value" id="llm-req">&mdash;</div>
+          <span class="metric-spark" id="llm-req-spark"></span>
+        </div>
+        <div class="metric" id="llm-err-row" style="display:none">
+          <div class="metric-label">Errors (5m)</div>
+          <div class="metric-value" id="llm-err">&mdash;</div>
+          <span class="metric-spark" id="llm-err-spark"></span>
+        </div>
+        <div class="metric" id="llm-load-row" style="display:none;grid-column:1/-1">
+          <div class="metric-label">Running</div>
+          <div class="metric-value" id="llm-load">&mdash;</div>
+        </div>
+        <div class="metric" id="llm-ttft-row" style="display:none">
+          <div class="metric-label">TTFT</div>
+          <div class="metric-value" id="llm-ttft">&mdash;</div>
+          <span class="metric-spark" id="llm-ttft-spark"></span>
+        </div>
+        <div class="metric" id="llm-tpot-row" style="display:none">
+          <div class="metric-label">TPOT</div>
+          <div class="metric-value" id="llm-tpot">&mdash;</div>
+          <span class="metric-spark" id="llm-tpot-spark"></span>
+        </div>
+        <div class="metric" id="llm-e2e-row" style="display:none">
+          <div class="metric-label">E2E Latency</div>
+          <div class="metric-value" id="llm-e2e">&mdash;</div>
+          <span class="metric-spark" id="llm-e2e-spark"></span>
+        </div>
+        <div class="metric" id="llm-prefix-row" style="display:none">
+          <div class="metric-label">Prefix Cache Hit</div>
+          <div class="metric-value" id="llm-prefix">&mdash;</div>
+          <span class="metric-spark" id="llm-prefix-spark"></span>
+        </div>
+        <div class="metric" id="llm-cache-tok-row" style="display:none">
+          <div class="metric-label">Cache Tokens (24h)</div>
+          <div class="metric-value" id="llm-cache-tok">&mdash;<span class="metric-unit"> tok</span></div>
+          <span class="metric-spark" id="llm-cache-tok-spark"></span>
+        </div>
+        <div class="metric" id="llm-spec-row" style="display:none">
+          <div class="metric-label">Spec Accept</div>
+          <div class="metric-value" id="llm-spec">&mdash;</div>
+        </div>
+        <div class="metric" id="llm-preempt-row" style="display:none">
+          <div class="metric-label">Preemptions</div>
+          <div class="metric-value" id="llm-preempt">&mdash;</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Gen 24h</div>
+          <div class="metric-value" id="gen-24h">&mdash;<span class="metric-unit"> tok</span></div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Gen 30d</div>
+          <div class="metric-value" id="gen-30d">&mdash;<span class="metric-unit"> tok</span></div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Prompt 24h</div>
+          <div class="metric-value" id="prompt-24h">&mdash;<span class="metric-unit"> tok</span></div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Prompt 30d</div>
+          <div class="metric-value" id="prompt-30d">&mdash;<span class="metric-unit"> tok</span></div>
+        </div>
+        <div class="metric" style="grid-column:1/-1">
+          <div class="metric-label">Server Uptime</div>
+          <div class="metric-value" id="llm-uptime">&mdash;</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cooling Card (hidden until fans[] arrives; tiles rendered from the array) -->
+    <div class="health-card" id="cooling-card" style="display:none">
+      <div class="card-head">
+        <div class="icon"><svg viewBox="0 0 24 24"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/><circle cx="12" cy="12" r="3"/></svg></div>
+        <div class="card-name">Cooling<span class="sub" id="fan-summary">&mdash;</span></div>
+      </div>
+      <div class="fan-grid" id="fan-metrics"></div>
+    </div>
+
+  </div>
+</section>
+
+<!-- GPU Section (whole section hidden when gpus key missing/empty; one tile per array element) -->
+<section id="gpu-section" style="display:none">
+  <h2 class="section-title"><span class="emoji">🖥️</span> GPUs <span id="gpu-summary" style="font-size:.7rem;color:var(--muted);font-weight:400">&mdash;</span></h2>
+  <div class="gpu-section-grid" id="gpu-metrics"></div>
+</section>
+
+<!-- Model Control Section (cards come from GET /api/cards; hidden when none served) -->
+<section id="control-section" style="display:none">
+  <h2 class="section-title"><span class="emoji">🧠</span> Model Control</h2>
+  <div class="health-grid" id="control-grid"></div>
+</section>
+
+<!-- Services Section (link cards come from GET /api/links) -->
+<section id="services-section">
+  <h2 class="section-title"><span class="emoji">🌐</span> Services <span class="sub" id="links-source"></span></h2>
+  <div class="grid" id="links-grid"></div>
+</section>
+
+<!-- Control Token -->
+<div class="hosts-box">
+  <p>Control actions (启动 / 停止) send the header <code>X-Control-Token</code>.<br>
+     The token is kept in your browser under <code>localStorage['console_token']</code> and is asked for once.</p>
+  <div class="token-row">
+    <input class="token-input" id="token-input" type="password" autocomplete="off" spellcheck="false" placeholder="控制令牌 console token" aria-label="控制令牌">
+    <button class="hosts-btn" id="token-save" type="button">
+      <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+      <span id="token-save-text">保存令牌</span>
+    </button>
+  </div>
+</div>
+
+<footer>
+  <p>Self-Hosted Ops Console · <span id="footer-host">&mdash;</span><br>
+     Telemetry via relative endpoints <code>/health.json</code> · <code>/api/cards</code> · <code>/api/links</code></p>
+</footer>
+
+</div>
+
+<div class="zoom-modal" id="zoom-modal" aria-hidden="true" role="dialog" aria-labelledby="zoom-title">
+  <div class="zoom-modal-content">
+    <div class="zoom-header">
+      <h3 id="zoom-title">Metric</h3>
+      <button class="zoom-btn" id="zoom-close-btn" aria-label="Close">Close</button>
+    </div>
+    <div class="zoom-chart-wrap" id="zoom-chart"></div>
+    <div class="zoom-stats" id="zoom-stats"></div>
+    <div class="zoom-controls">
+      <button class="zoom-btn" id="zoom-in-btn">Zoom In</button>
+      <button class="zoom-btn" id="zoom-reset-btn">Reset</button>
+      <button class="zoom-btn" id="zoom-out-btn">Zoom Out</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+/* ============ shared flags + helpers ============ */
+window.SELFTEST = /[?&]selftest=1\b/.test(location.search);
+
+/* Inline icon vocabulary — self-contained SVG markup (no CDN, no fonts).
+   Keys mirror the icon names used by /api/links and /api/cards. */
+window.ICONS = {
+  server:  '<rect x="5" y="5" width="14" height="14" rx="2"/><rect x="9" y="9" width="6" height="6" rx="1"/><path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/>',
+  cpu:     '<rect x="5" y="5" width="14" height="14" rx="2"/><rect x="9" y="9" width="6" height="6" rx="1"/><path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/>',
+  gpu:     '<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="8" cy="12" r="3"/><path d="M14 10h5M14 14h5"/>',
+  cloud:   '<path d="M18 10a4 4 0 0 0-7.46-2A3.5 3.5 0 0 0 7 11.5H6.5a3.5 3.5 0 0 0 0 7H18a3 3 0 0 0 0-6"/>',
+  grid:    '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+  shield:  '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
+  key:     '<path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.778zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>',
+  book:    '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="14" y2="11"/>',
+  gauge:   '<circle cx="12" cy="12" r="10"/><path d="M12 12l4-7"/><circle cx="12" cy="12" r="1.5" fill="var(--accent)"/>',
+  lock:    '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+  globe:   '<circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>',
+  terminal:'<polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/>',
+  desktop: '<rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>',
+  chat:    '<path d="M12 2a4 4 0 0 0-4 4v1a3 3 0 0 0-3 3 3 3 0 0 0 1.1 2.3A3 3 0 0 0 5 15a3 3 0 0 0 3 3v1a3 3 0 0 0 3 3h2a3 3 0 0 0 3-3v-1a3 3 0 0 0 3-3 3 3 0 0 0-1.1-2.3A3 3 0 0 0 19 10a3 3 0 0 0-3-3V6a4 4 0 0 0-4-4z"/>',
+  pulse:   '<path d="M3 12h4l3-9 4 18 3-9h4"/>',
+  camera:  '<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>',
+  chip:    '<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9h6v6H9z"/><path d="M9 1v3"/><path d="M15 1v3"/><path d="M9 20v3"/><path d="M15 20v3"/><path d="M20 9h3"/><path d="M20 14h3"/><path d="M1 9h3"/><path d="M1 14h3"/>',
+  eye:     '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>',
+  database:'<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>',
+  brain:   '<path d="M9 3H5a2 2 0 0 0-2 2v4M15 3h4a2 2 0 0 1 2 2v4M9 21H5a2 2 0 0 1-2-2v-4M15 21h4a2 2 0 0 0 2-2v-4"/><circle cx="12" cy="12" r="3"/>',
+  layers:  '<path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>',
+  box:     '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>'
+};
+window.iconSVG = function(name){
+  var inner = (name && window.ICONS[name]) || window.ICONS.box;
+  return '<div class="icon"><svg viewBox="0 0 24 24">' + inner + '</svg></div>';
+};
+window.esc = function(s){
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  });
+};
+
+/* host line + footer host: derived, never hardcoded */
+document.getElementById('host-line').textContent = location.hostname || 'localhost';
+document.getElementById('footer-host').textContent = location.hostname || 'localhost';
+</script>
+
+<script>
+/* ============ control token (X-Control-Token, localStorage['console_token']) ============ */
+(function(){
+  var KEY = '***';
+  window.getToken = function(){
+    var t = '';
+    try { t = localStorage.getItem(KEY) || ''; } catch(e){}
+    if (!t && !window.SELFTEST){
+      t = window.prompt('输入控制台控制令牌 (X-Control-Token):') || '';
+      t = t.trim();
+      if (t){ try { localStorage.setItem(KEY, t); } catch(e){} }
+    }
+    return t;
+  };
+  window.clearToken = function(){ try { localStorage.removeItem(KEY); } catch(e){} };
+
+  var input = document.getElementById('token-input');
+  var btn = document.getElementById('token-save');
+  var txt = document.getElementById('token-save-text');
+  try { var v = localStorage.getItem(KEY); if (v) input.value = v; } catch(e){}
+  btn.addEventListener('click', function(){
+    var val = input.value.trim();
+    try { val ? localStorage.setItem(KEY, val) : localStorage.removeItem(KEY); } catch(e){}
+    btn.classList.add('copied'); txt.textContent = '\u2713 已保存';
+    setTimeout(function(){ btn.classList.remove('copied'); txt.textContent = '保存令牌'; }, 2000);
+  });
+})();
+</script>
+
+<script>
+/* ============ System Health polling (1s) — every block data-driven ============ */
+(function(){
+  function fmtTok(n){
+    if(n===undefined||n===null||isNaN(n))return'\u2014';
+    if(n<1000)return n.toString();
+    if(n<1e6)return(n/1e3).toFixed(2)+'K';
+    return(n/1e6).toFixed(2)+'M';
+  }
+  function fmtBytes(b, digits){
+    if (!b && b !== 0) return '\u2014';
+    var gb = b/1024/1024/1024;
+    return gb.toFixed(digits===undefined?1:digits);
+  }
+  function fmtDuration(s){
+    if (s === undefined || s === null) return '\u2014';
+    var d = Math.floor(s/86400);
+    var h = Math.floor((s%86400)/3600);
+    var m = Math.floor((s%3600)/60);
+    if (d > 0) return d+'d '+h+'h';
+    if (h > 0) return h+'h '+m+'m';
+    return m+'m';
+  }
+  function setBarColor(el, pct){
+    el.classList.remove('amber','red');
+    if (pct > 90) el.classList.add('red');
+    else if (pct > 70) el.classList.add('amber');
+  }
+  function setThreshold(el, pct){
+    el.classList.remove('warn','crit');
+    if (pct > 90) el.classList.add('crit');
+    else if (pct > 70) el.classList.add('warn');
+  }
+  function setText(id, val){
+    var el = document.getElementById(id);
+    if (el) el.textContent = val;
+  }
+  function setHTML(id, val){
+    var el = document.getElementById(id);
+    if (el) el.innerHTML = val;
+  }
+  function showEl(id, show){
+    var el = document.getElementById(id);
+    if (el) el.style.display = show ? '' : 'none';
+  }
+  var hasNum = function(v){ return typeof v === 'number' && !isNaN(v); };
+
+  /* GPU tiles — one tile per array element; the WHOLE section hides when the
+     gpus key is missing/empty (no GPU0-3 hardcoding, no dashed placeholders). */
+  function renderGPUs(gpus){
+    var container = document.getElementById('gpu-metrics');
+    var section = document.getElementById('gpu-section');
+    if (!container || !section) return;
+    var summary = document.getElementById('gpu-summary');
+    if (!gpus || !gpus.length){
+      section.style.display = 'none';
+      container.innerHTML = '';
+      if (summary) summary.innerHTML = '&mdash;';
+      return;
+    }
+    section.style.display = '';
+    if (summary){
+      summary.textContent = (gpus[0].card || 'GPU') + ' \u00D7' + gpus.length;
+    }
+    container.innerHTML = '';
+    gpus.forEach(function(g, i){
+      var card = document.createElement('div');
+      card.className = 'health-card';
+
+      var usePct = hasNum(g.use_pct) ? g.use_pct : (parseFloat(g.use_pct) || 0);
+      var useClass = usePct > 90 ? 'crit' : usePct > 60 ? 'warn' : '';
+
+      var tempStr = hasNum(g.temp_junction_c) ? (g.temp_junction_c.toFixed(0)+'\u00B0C') : '\u2014';
+      var tempClass = hasNum(g.temp_junction_c) ? (g.temp_junction_c > 85 ? 'crit' : (g.temp_junction_c > 70 ? 'warn' : '')) : '';
+      var coreTempStr = hasNum(g.temp_edge_c) ? (g.temp_edge_c.toFixed(0)+'\u00B0C') : '\u2014';
+      var coreTempClass = hasNum(g.temp_edge_c) ? (g.temp_edge_c > 85 ? 'crit' : (g.temp_edge_c > 70 ? 'warn' : '')) : '';
+
+      var vramStr = '\u2014';
+      var vramPct = 0;
+      if (hasNum(g.vram_total_gb) && g.vram_total_gb > 0 && hasNum(g.vram_used_gb)){
+        vramStr = g.vram_used_gb.toFixed(1)+' / '+g.vram_total_gb.toFixed(1)+' <span class="metric-unit">GB</span>';
+        vramPct = g.vram_alloc_pct || 0;
+      }
+
+      var powerStr = '\u2014';
+      if (hasNum(g.power_w)) powerStr = g.power_w.toFixed(0)+'<span class="metric-unit"> W</span>';
+
+      var pcieStr = '\u2014';
+      var pcieClass = '';
+      if (g.pcie_gen_cur != null && g.pcie_width_cur != null){
+        pcieStr = 'Gen'+g.pcie_gen_cur+' \u00D7'+g.pcie_width_cur;
+        if ((g.pcie_gen_max != null && g.pcie_gen_cur < g.pcie_gen_max) ||
+            (g.pcie_width_max != null && g.pcie_width_cur < g.pcie_width_max)){
+          pcieClass = 'warn';
+        }
+      }
+
+      var html = '<div class="card-head"><div class="icon"><svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="8" cy="12" r="3"/><path d="M14 10h5M14 14h5"/></svg></div>';
+      html += '<div class="card-name">Card '+i+' &middot; '+window.esc(g.card || '')+'</div></div>';
+      html += '<div class="health-metrics">';
+      html += '<div class="metric"><div class="metric-label">Utilization</div>';
+      html += '<div class="metric-value '+useClass+'">'+usePct.toFixed(0)+'<span class="metric-unit"> %</span></div>';
+      html += '<span class="metric-spark-gpu" id="gpu'+i+'-util-spark"></span></div>';
+      html += '<div class="metric"><div class="metric-label">Junction</div>';
+      html += '<div class="metric-value '+tempClass+'">'+tempStr+'</div>';
+      html += '<span class="metric-spark-gpu" id="gpu'+i+'-temp-spark"></span></div>';
+      html += '<div class="metric"><div class="metric-label">Core</div>';
+      html += '<div class="metric-value '+coreTempClass+'">'+coreTempStr+'</div>';
+      html += '<span class="metric-spark-gpu" id="gpu'+i+'-temp-core-spark"></span></div>';
+      html += '<div class="metric"><div class="metric-label">Power</div>';
+      html += '<div class="metric-value">'+powerStr+'</div>';
+      html += '<span class="metric-spark-gpu" id="gpu'+i+'-power-spark"></span></div>';
+      html += '<div class="metric" style="grid-column:1/-1"><div class="metric-label">PCIe</div>';
+      html += '<div class="metric-value '+pcieClass+'">'+pcieStr+'</div></div>';
+      html += '<div class="metric" style="grid-column:1/-1"><div class="metric-label">VRAM</div>';
+      html += '<div class="metric-value">'+vramStr+'</div>';
+      html += '<div class="metric-bar"><div class="bar '+(vramPct>90?'red':vramPct>70?'amber':'')+'" id="gpu'+i+'-util-bar" style="width:'+vramPct+'%"></div></div>';
+      html += '<span class="metric-spark-gpu" id="gpu'+i+'-vram-spark"></span></div>';
+      html += '</div>';
+
+      card.innerHTML = html;
+      container.appendChild(card);
+    });
+  }
+
+  var FAN_MAX_RPM = 5500; // generic chassis-fan scale for the bar/ceiling
+  window.FAN_MAX_RPM = FAN_MAX_RPM;
+  // Backplate fans on this chassis family (FANC/FAND) run a 5000/5500/6300 acoustic
+  // ladder and transient ~9900 on BMC profile switch -> per-name ceiling 10000,
+  // otherwise the shared 5500 scale pegs them red at normal speed.
+  // Other machines simply never produce these names -> map is a no-op there.
+  var FAN_MAX_OVERRIDES = {FANC: 10000, FAND: 10000};
+
+  /* Fan tiles — one per array element; Cooling card hides when key missing/empty. */
+  function renderFans(fans){
+    var container = document.getElementById('fan-metrics');
+    var coolingCard = document.getElementById('cooling-card');
+    if (!container || !coolingCard) return;
+    var summary = document.getElementById('fan-summary');
+    if (!fans || !fans.length){
+      coolingCard.style.display = 'none';
+      container.innerHTML = '';
+      if (summary) summary.innerHTML = '&mdash;';
+      return;
+    }
+    coolingCard.style.display = '';
+    if (summary) summary.textContent = fans.length + ' fans';
+    container.innerHTML = '';
+    fans.forEach(function(f, i){
+      var fanMax = FAN_MAX_OVERRIDES[f.name] || FAN_MAX_RPM;
+      var rpm = hasNum(f.rpm) ? f.rpm : 0;
+      var pct = Math.min(100, (rpm / fanMax) * 100);
+      var barClass = pct > 85 ? 'red' : pct > 65 ? 'amber' : '';
+      var tile = document.createElement('div');
+      tile.className = 'fan-tile';
+      tile.innerHTML = '<div class="fan-tile__label">' + window.esc(f.name) + '</div>' +
+        '<div class="fan-tile__value">' + rpm + ' <span class="metric-unit">RPM</span></div>' +
+        '<div class="fan-tile__bar"><div class="fan-tile__bar-fill ' + barClass + '" ' +
+        'id="fan' + i + '-bar" style="width:' + pct.toFixed(0) + '%"></div></div>' +
+        '<span class="metric-spark" id="fan' + i + '-rpm-spark"></span>';
+      container.appendChild(tile);
+    });
+  }
+
+  /* Disk rows — one per disks[] element; group hides when key missing/empty.
+     Labels come from the data (d.label || d.path) — no hardcoded mount points. */
+  function renderDisks(disks){
+    var group = document.getElementById('disk-rows');
+    if (!group) return;
+    if (!disks || !disks.length){
+      group.classList.add('is-hidden');
+      group.innerHTML = '';
+      return;
+    }
+    group.classList.remove('is-hidden');
+    group.innerHTML = '';
+    disks.forEach(function(d, i){
+      var label = d.label || d.path || ('Disk '+i);
+      var row = document.createElement('div');
+      row.className = 'metric';
+      row.style.gridColumn = '1 / -1';
+      var pct = hasNum(d.used_pct) ? d.used_pct : 0;
+      row.innerHTML = '<div class="metric-label">'+window.esc(label)+'</div>'+
+        '<div class="metric-value" id="disk-value-'+i+'">'+fmtBytes(d.used,0)+' / '+fmtBytes(d.total,0)+' <span class="metric-unit">GB</span></div>'+
+        '<div class="metric-bar"><div class="bar" id="disk-bar-'+i+'" style="width:'+pct.toFixed(1)+'%"></div></div>'+
+        '<span class="metric-spark" id="disk-spark-'+i+'"></span>';
+      group.appendChild(row);
+      var bar = document.getElementById('disk-bar-'+i);
+      if (bar) setBarColor(bar, pct);
+      var val = document.getElementById('disk-value-'+i);
+      if (val) setThreshold(val, pct);
+    });
+  }
+
+  /* Power rows — the whole group hides when the power key is absent. */
+  function renderPower(p){
+    var group = document.getElementById('power-group');
+    if (!group) return;
+    if (!p){ group.classList.add('is-hidden'); return; }
+    group.classList.remove('is-hidden');
+    if (hasNum(p.current_w)){
+      setHTML('power-current', p.current_w.toFixed(0)+' <span class="metric-unit">W</span>');
+    }
+    if (hasNum(p.consumption_24h_kwh)){
+      setHTML('power-24h', p.consumption_24h_kwh.toFixed(2)+' <span class="metric-unit">kWh</span>');
+    }
+    if (hasNum(p.consumption_30d_kwh)){
+      setHTML('power-30d', p.consumption_30d_kwh.toFixed(1)+' <span class="metric-unit">kWh</span>');
+    }
+  }
+
+  /* LLM card — hides entirely when llm key missing or llm.backend is null.
+     Backend-specific optional rows stay hidden unless the key is present
+     (the spec-decode / auto-hide pattern carried over from the original page). */
+  function renderLLM(l){
+    var card = document.getElementById('llm-card');
+    if (!card) return;
+    if (!l || !l.backend){ card.style.display = 'none'; return; }
+    card.style.display = '';
+    var fmtMs = function(v){
+      if (v >= 1000) return (v/1000).toFixed(1)+' <span class="metric-unit">s</span>';
+      return v.toFixed(1)+' <span class="metric-unit">ms</span>';
+    };
+    var showRow = function(id, show){
+      var el = document.getElementById(id);
+      if (el) el.style.display = show ? '' : 'none';
+    };
+    var backendName = l.backend === 'llamacpp' ? 'llama.cpp' : (l.backend === 'vllm' ? 'vLLM' : String(l.backend));
+    if (l.model){
+      setText('llm-model', l.model);
+    }
+    var ep = document.getElementById('llm-endpoint');
+    if (ep){
+      if (l.llm_port){
+        // endpoint line: <host we were served from>:<llm_port> · <container> · <backend>
+        ep.textContent = (location.hostname || 'localhost') + ':' + l.llm_port +
+          (l.llm_container ? ' \u00B7 ' + l.llm_container : '') +
+          (backendName ? ' \u00B7 ' + backendName : '');
+        ep.style.display = '';
+      } else {
+        ep.style.display = 'none';
+      }
+    }
+    if (hasNum(l.last_gen_tps)){
+      setHTML('gen-tokens', l.last_gen_tps.toFixed(1)+' <span class="metric-unit">tok/s</span>');
+    }
+    if (hasNum(l.last_prompt_tps)){
+      setHTML('prompt-tokens', l.last_prompt_tps.toFixed(0)+' <span class="metric-unit">tok/s</span>');
+    }
+    if (hasNum(l.kv_cache_fill_pct) && l.kv_cache_fill_pct >= 0){
+      // New backend emits 0-100 directly; legacy llama.cpp /slots emitted 0-1.
+      var pct = l.kv_cache_fill_pct;
+      if (pct <= 1){
+        if (hasNum(l.kv_cache_used_tokens) && l.kv_cache_used_tokens >= 0 && hasNum(l.kv_cache_max_tokens) && l.kv_cache_max_tokens > 0){
+          pct = l.kv_cache_used_tokens / l.kv_cache_max_tokens * 100;
+        } else {
+          pct = pct * 100;
+        }
+      }
+      var kvStr = pct.toFixed(1)+' <span class="metric-unit">%</span>';
+      if (l.kv_cache_max_tokens > 0 && hasNum(l.kv_cache_used_tokens)){
+        var usedK = (l.kv_cache_used_tokens/1000).toFixed(1);
+        var maxK = (l.kv_cache_max_tokens/1000).toFixed(1);
+        kvStr += '<br><span class="metric-unit">'+usedK+'k / '+maxK+'k tok</span>';
+      }
+      setHTML('kv-cache', kvStr);
+      var kvBar = document.getElementById('kv-bar');
+      if (kvBar){ kvBar.style.width = pct.toFixed(1)+'%'; setBarColor(kvBar, pct); }
+    } else if (l.kv_cache_fill_pct === -1){
+      setText('kv-cache', '\u2014');
+    }
+    if (hasNum(l.queue_depth) && l.queue_depth >= 0){
+      if (l.backend === 'llamacpp' && hasNum(l.queue_capacity)){
+        // llama.cpp: capacity = concurrent slots — queue is genuinely slot-bounded
+        setText('llm-queue', l.queue_depth+' / '+l.queue_capacity+' slots');
+      } else {
+        // vLLM/unknown: waiting queue is unbounded; queue_capacity is the RUNNING concurrency limit
+        setText('llm-queue', l.queue_depth+' waiting');
+      }
+    }
+    if (hasNum(l.gen_total_24h)) setHTML('gen-24h', fmtTok(l.gen_total_24h)+' <span class="metric-unit">tok</span>');
+    if (hasNum(l.gen_total_30d)) setHTML('gen-30d', fmtTok(l.gen_total_30d)+' <span class="metric-unit">tok</span>');
+    if (hasNum(l.prompt_total_24h)) setHTML('prompt-24h', fmtTok(l.prompt_total_24h)+' <span class="metric-unit">tok</span>');
+    if (hasNum(l.prompt_total_30d)) setHTML('prompt-30d', fmtTok(l.prompt_total_30d)+' <span class="metric-unit">tok</span>');
+    if (hasNum(l.server_uptime_s)) setText('llm-uptime', fmtDuration(l.server_uptime_s));
+    // v2 backend metrics (vLLM/llama.cpp auto-detect) — rows hidden unless key present
+    var loadStr = '';
+    if (hasNum(l.running)) loadStr = String(l.running);
+    if (hasNum(l.queue_capacity)) loadStr += (loadStr ? ' / ' : '') + l.queue_capacity;
+    if (hasNum(l.waiting)) loadStr += (loadStr ? ' \u00B7 ' : '') + l.waiting + ' wait';
+    showRow('llm-load-row', loadStr !== '');
+    if (loadStr !== '') setText('llm-load', loadStr);
+    showRow('llm-ttft-row', hasNum(l.ttft_ms));
+    if (hasNum(l.ttft_ms)) setHTML('llm-ttft', fmtMs(l.ttft_ms));
+    showRow('llm-tpot-row', hasNum(l.tpot_ms));
+    if (hasNum(l.tpot_ms)) setHTML('llm-tpot', fmtMs(l.tpot_ms));
+    showRow('llm-e2e-row', hasNum(l.e2e_ms));
+    if (hasNum(l.e2e_ms)) setHTML('llm-e2e', fmtMs(l.e2e_ms));
+    showRow('llm-prefix-row', hasNum(l.prefix_hit_pct));
+    if (hasNum(l.prefix_hit_pct)) setText('llm-prefix', l.prefix_hit_pct.toFixed(1)+'%');
+    showRow('llm-cache-tok-row', hasNum(l.prompt_cached_total_24h));
+    if (hasNum(l.prompt_cached_total_24h))
+      setHTML('llm-cache-tok', fmtTok(l.prompt_cached_total_24h) + ' <span class="metric-unit">tok</span>' +
+        (hasNum(l.prompt_cached_pct_24h) ? '<br><span class="metric-unit">' + l.prompt_cached_pct_24h.toFixed(1) + '% hit</span>' : ''));
+    showRow('llm-spec-row', hasNum(l.spec_accept_pct));
+    if (hasNum(l.spec_accept_pct)) setText('llm-spec', l.spec_accept_pct.toFixed(1)+'%');
+    showRow('llm-preempt-row', hasNum(l.num_preemptions));
+    if (hasNum(l.num_preemptions)) setText('llm-preempt', String(l.num_preemptions));
+    showRow('llm-req-row', hasNum(l.total_requests));
+    if (hasNum(l.total_requests)) setText('llm-req', String(l.total_requests));
+    showRow('llm-err-row', hasNum(l.error_count_5m));
+    if (hasNum(l.error_count_5m)){
+      setText('llm-err', String(l.error_count_5m));
+      var errEl = document.getElementById('llm-err');
+      if (errEl){
+        errEl.classList.remove('warn','crit');
+        if (l.error_count_5m > 0) errEl.classList.add('crit');
+      }
+    }
+  }
+
+  function applyHealth(h){
+    if (!h) return;
+    // timestamp
+    if (h.updated_iso){
+      var updText = 'updated '+h.updated_iso;
+      var updEl = document.getElementById('health-updated');
+      if (updEl && updEl.textContent !== updText){
+        lastDomChangeTs = Date.now();   // watchdog: DOM actually advanced
+        lastUpdatedIso = h.updated_iso;
+      }
+      setText('health-updated', updText);
+    }
+
+    // CPU load: normalize against cores
+    if (h.load_1m !== undefined){
+      var cores = h.cpu_cores || 1;
+      var pct = Math.min(100, h.load_1m / cores * 100);
+      setText('load-value', h.load_1m.toFixed(2));
+      setHTML('cpu-sub', (hasNum(h.load_5m)?h.load_5m.toFixed(2):'\u2014')+' / '+(hasNum(h.load_15m)?h.load_15m.toFixed(2):'\u2014')+' \u00B7 '+cores+' cores');
+      var loadBar = document.getElementById('load-bar');
+      loadBar.style.width = pct.toFixed(1)+'%';
+      setBarColor(loadBar, pct);
+      setThreshold(document.getElementById('load-value'), pct);
+    }
+
+    // Uptime
+    if (h.uptime_s !== undefined){
+      setText('uptime-value', fmtDuration(h.uptime_s));
+    }
+
+    // RAM
+    if (h.mem_total){
+      showEl('ram-row', true);
+      setHTML('ram-value', fmtBytes(h.mem_used,1)+' / '+fmtBytes(h.mem_total,1)+' <span class="metric-unit">GB</span>');
+      var ramBar = document.getElementById('ram-bar');
+      ramBar.style.width = (h.mem_used_pct||0).toFixed(1)+'%';
+      setBarColor(ramBar, h.mem_used_pct||0);
+    } else {
+      showEl('ram-row', false);
+    }
+
+    // Swap
+    if (h.swap_total !== undefined){
+      showEl('swap-row', true);
+      if (h.swap_total > 0){
+        setHTML('swap-value', fmtBytes(h.swap_total - h.swap_free,1)+' / '+fmtBytes(h.swap_total,1)+' <span class="metric-unit">GB</span>');
+        var swapBar = document.getElementById('swap-bar');
+        swapBar.style.width = (h.swap_used_pct||0).toFixed(1)+'%';
+        setBarColor(swapBar, h.swap_used_pct||0);
+      } else {
+        setText('swap-value', 'none');
+      }
+    } else {
+      showEl('swap-row', false);
+    }
+
+    // Data-driven blocks: each hides itself when its health key is absent
+    renderDisks(h.disks);
+    renderGPUs(h.gpus);
+    renderFans(h.fans);
+    renderPower(h.power);
+    renderLLM(h.llm);
+  }
+
+  window.__app = { applyHealth: applyHealth, renderGPUs: renderGPUs, renderFans: renderFans,
+                   renderDisks: renderDisks, renderPower: renderPower, renderLLM: renderLLM };
+
+  var lastDomChangeTs = Date.now();   // last time #health-updated actually changed
+  var lastUpdatedIso = null;          // server updated_iso currently shown in DOM
+  var lastReloadTs = 0;               // watchdog reload rate-limit
+  var lastPollStartTs = 0;            // visibility-recovery dedupe guard
+  var pollTimer = null;
+
+  function poll(){
+    if (pollTimer){ clearTimeout(pollTimer); pollTimer = null; }  // dedupe (visibility kick)
+    lastPollStartTs = Date.now();
+    var healthP = fetch('/health.json', {cache:'no-store', signal: AbortSignal.timeout(5000)})
+      .then(function(r){ if (!r.ok) throw new Error('http '+r.status); return r.json(); });
+    var historyP = fetch('/health.history.json', {cache:'no-store', signal: AbortSignal.timeout(5000)})
+      .then(function(r){ if (!r.ok) throw new Error('http '+r.status); return r.json(); })
+      .catch(function(){ return {samples:[]}; });
+    Promise.all([healthP, historyP]).then(function(res){
+      var h = res[0];
+      var history = res[1];
+      try { applyHealth(h); } catch(e){ /* render-fault isolation: sparklines still run below */ }
+      try {
+        if (history && history.samples && typeof window._renderSparklines === 'function'){
+          window._renderSparklines(h, history.samples);
+        }
+      } catch(e){ /* render-fault isolation: health rows already applied above */ }
+    }).catch(function(e){ /* silent — aborted/timed-out fetches land here; retry on next tick */ });
+    pollTimer = setTimeout(poll, 1000);  // unconditional reschedule — never stalls
+  }
+
+  /* Visibility recovery: background tabs get throttled timers; on becoming visible,
+     kick one poll immediately (guarded so we don't stack on a poll started <3s ago). */
+  document.addEventListener('visibilitychange', function(){
+    if (document.visibilityState === 'visible' && Date.now() - lastPollStartTs > 3000){
+      poll();
+    }
+  });
+
+  /* Self-heal watchdog: if the DOM stays stale >45s while visible, probe the server.
+     Reload ONLY if the server provably has fresher data (client-side stall).
+     Probe failure or equal timestamp = server-side stall → do nothing (no reload loops). */
+  function watchdogTick(){
+    try {
+      if (document.visibilityState !== 'visible') return;
+      if (Date.now() - lastDomChangeTs <= 45000) return;
+      fetch('/health.json?t=' + Date.now(), {cache:'no-store', signal: AbortSignal.timeout(5000)})
+        .then(function(r){ if (!r.ok) throw new Error('http '+r.status); return r.json(); })
+        .then(function(h){
+          if (document.visibilityState !== 'visible') return;
+          if (h && h.updated_iso && h.updated_iso !== lastUpdatedIso){
+            if (Date.now() - lastReloadTs > 120000){  // hard safety: max 1 reload per 2 min
+              lastReloadTs = Date.now();
+              location.reload();
+            }
+          }
+          /* server timestamp equals DOM (or missing) → daemon-side stall → never reload */
+        })
+        .catch(function(){ /* probe failed → server unreachable → do nothing */ });
+    } catch(e){ /* watchdog must never throw */ }
+  }
+  setInterval(watchdogTick, 5000);
+
+  /* LLM probe — manual re-detect of the LLM endpoint */
+  var probeTimer = null;
+  function showProbeResult(msg, ok){
+    var el = document.getElementById('llm-probe-result');
+    if (!el) return;
+    if (probeTimer){ clearTimeout(probeTimer); probeTimer = null; }
+    el.textContent = msg;
+    el.className = 'probe-result ' + (ok ? 'ok' : 'err');
+    el.style.display = '';
+    probeTimer = setTimeout(function(){
+      el.style.display = 'none';
+      probeTimer = null;
+    }, 6000);
+  }
+  window.probeLLM = function(){
+    var btn = document.getElementById('llm-probe');
+    if (btn) btn.classList.add('busy');
+    fetch('/health.json?t=' + Date.now(), {cache:'no-store', signal: AbortSignal.timeout(5000)})
+      .then(function(r){ if (!r.ok) throw new Error('http ' + r.status); return r.json(); })
+      .then(function(h){
+        applyHealth(h);
+        var l = h && h.llm;
+        if (l && l.llm_port && l.backend){
+          var pb = l.backend === 'llamacpp' ? 'llama.cpp' : 'vLLM';
+          var msg = '\u2705 已探测: ' + pb + ' ' + (l.model || 'LLM') + ' @ ' + (location.hostname || 'localhost') + ':' + l.llm_port;
+          if (l.llm_container) msg += ' (' + l.llm_container + ')';
+          showProbeResult(msg, true);
+        } else {
+          showProbeResult('\u26A0 探测失败: 后端未检测到', false);
+        }
+      })
+      .catch(function(){
+        showProbeResult('\u26A0 探测失败: 后端未检测到', false);
+      })
+      .then(function(){
+        var b = document.getElementById('llm-probe');
+        if (b) b.classList.remove('busy');
+      });
+  };
+  var probeBtn = document.getElementById('llm-probe');
+  if (probeBtn) probeBtn.addEventListener('click', function(){ window.probeLLM(); });
+
+  if (!window.SELFTEST) poll();
+})();
+</script>
+
+<script>
+/* ============ Services: link cards from GET /api/links ============
+   Zero hardcoded hosts: DEFAULT_LINKS only builds location.hostname + relative
+   ports, and is used ONLY when /api/links is unavailable (static preview mode). */
+(function(){
+  function defaultLinks(){
+    var H = location.hostname || 'localhost';
+    var lp = function(p){ return 'http://' + H + ':' + p; };
+    return [
+      {name:'Files',            icon:'cloud',    url:lp(8080),  desc:'文件同步 · 日历 · 联系人'},
+      {name:'Authentik',        icon:'shield',   url:lp(9000),  desc:'SSO · 身份认证'},
+      {name:'Wiki.js',          icon:'book',     url:lp(3000),  desc:'知识库'},
+      {name:'Cockpit',          icon:'gauge',    url:'https://' + H + ':9090', desc:'服务器管理面板'},
+      {name:'LLM Chat',         icon:'chat',     url:lp(3001),  desc:'Open WebUI · 直接与本地 LLM 对话'},
+      {name:'LLM Monitor',      icon:'pulse',    url:lp(3001),  desc:'Open WebUI · 模型与 GPU 监控'},
+      {name:'Frigate',          icon:'camera',   url:lp(5000),  desc:'摄像头 · 目标检测'}
+    ];
+  }
+  function cardHTML(d){
+    var internal = d.port_check === false;
+    var head = window.iconSVG(d.icon);
+    var info = '<div class="info"><div class="name">' + window.esc(d.name) + '</div>' +
+      (d.desc ? '<div class="desc">' + window.esc(d.desc) + '</div>' : '') +
+      (d.url  ? '<div class="url">'  + window.esc(d.url)  + '</div>' : '') +
+      '</div>';
+    if (internal) return '<div class="card internal">' + head + info + '</div>';
+    return '<a class="card" href="' + window.esc(d.url || '#') + '" target="_blank" rel="noopener noreferrer">' + head + info + '</a>';
+  }
+  window.renderLinks = function(links, label){
+    var grid = document.getElementById('links-grid');
+    if (grid) grid.innerHTML = (links && links.length)
+      ? links.map(cardHTML).join('')
+      : '<div class="health-empty">No services published</div>';
+    var src = document.getElementById('links-source');
+    if (src && label) src.textContent = label;
+  };
+  if (window.SELFTEST){ window.renderLinks(defaultLinks(), 'fallback'); return; }
+  fetch('/api/links', {cache:'no-store', signal: AbortSignal.timeout(4000)})
+    .then(function(r){ if (!r.ok) throw new Error('http ' + r.status); return r.json(); })
+    .then(function(j){
+      var links = Array.isArray(j) ? j : (j && Array.isArray(j.links) ? j.links : null);
+      if (!links) throw new Error('bad payload');
+      window.renderLinks(links, 'via /api/links');
+    })
+    .catch(function(){ window.renderLinks(defaultLinks(), 'static preview fallback'); });
+})();
+</script>
+
+<script>
+/* ============ Model Control: cards from GET /api/cards, 5s status poll ============
+   No per-model hardcoding — one card per served entry; full state vocabulary
+   on the pill (D1 fix: an unmapped state degrades to a neutral pill, never a
+   broken render). Actions POST with X-Control-Token from localStorage. */
+(function(){
+  /* full enum: ready running starting loading stopped unknown (+ extras seen in
+     status scripts: warmup capture error) */
+  var PILL = {
+    ready:    ['online',   'Ready'],
+    running:  ['online',   'Ready'],
+    starting: ['busy',     'Starting'],
+    loading:  ['busy',     'Loading'],
+    warmup:   ['busy',     'Warmup'],
+    capture:  ['busy',     'Capture'],
+    stopped:  ['internal', 'Stopped'],
+    unknown:  ['err',      'Unknown'],
+    error:    ['err',      'Error']
+  };
+  var START_BLOCK = ['ready', 'running', 'starting', 'loading'];
+  function pillFor(state){
+    return PILL[String(state || 'unknown').toLowerCase()] || ['internal', String(state)];
+  }
+  function fmtTokTok(n){
+    if (typeof n !== 'number' || isNaN(n)) return '\u2014';
+    if (n < 1000) return String(n);
+    if (n < 1e6) return (n/1e3).toFixed(2)+'K';
+    return (n/1e6).toFixed(2)+'M';
+  }
+
+  function cardShell(card){
+    var id = card.id;
+    var el = document.getElementById('ctl-' + id);
+    if (el) return el;
+    el = document.createElement('div');
+    el.className = 'health-card';
+    el.id = 'ctl-' + id;
+    el.innerHTML =
+      '<div class="card-head">' + window.iconSVG(card.icon) +
+        '<div class="card-name">' + window.esc(card.name || id) +
+          ' <span class="pill internal" id="ctl-' + id + '-pill">—</span>' +
+          '<span class="sub" id="ctl-' + id + '-updated"></span>' +
+        '</div>' +
+        '<div class="card-actions" id="ctl-' + id + '-actions"></div>' +
+      '</div>' +
+      '<div class="health-metrics" id="ctl-' + id + '-metrics" style="display:none"></div>';
+    document.getElementById('control-grid').appendChild(el);
+
+    var actions = card.actions || ['start', 'stop'];
+    var abox = document.getElementById('ctl-' + id + '-actions');
+    if (actions.indexOf('start') !== -1){
+      var b1 = document.createElement('button');
+      b1.type = 'button'; b1.className = 'ctl-btn'; b1.dataset.act = 'start';
+      b1.textContent = '\u25B6 启动';
+      abox.appendChild(b1);
+    }
+    if (actions.indexOf('stop') !== -1){
+      var b2 = document.createElement('button');
+      b2.type = 'button'; b2.className = 'ctl-btn danger'; b2.dataset.act = 'stop';
+      b2.textContent = '\u25A0 停止';
+      abox.appendChild(b2);
+    }
+    abox.querySelectorAll('button[data-act]').forEach(function(btn){
+      btn.addEventListener('click', function(){ actOn(id, btn.dataset.act, card.name || id); });
+    });
+    return el;
+  }
+
+  function renderStatus(card, s){
+    var id = card.id;
+    cardShell(card);
+    var st = String((s && s.state) || 'unknown').toLowerCase();
+    var pill = document.getElementById('ctl-' + id + '-pill');
+    var cls = pillFor(st);
+    pill.className = 'pill ' + cls[0];
+    pill.textContent = cls[1];
+    var upd = document.getElementById('ctl-' + id + '-updated');
+    upd.textContent = (s && s.updated_at) ? String(s.updated_at).replace('T', ' ').slice(0, 19) : '';
+
+    var act = document.getElementById('ctl-' + id + '-actions');
+    var startB = act.querySelector('button[data-act="start"]');
+    var stopB  = act.querySelector('button[data-act="stop"]');
+    if (startB) startB.disabled = START_BLOCK.indexOf(st) !== -1;
+    if (stopB)  stopB.disabled  = (st === 'stopped');
+
+    /* optional detail rows: rendered only when the status script exposes them */
+    var box = document.getElementById('ctl-' + id + '-metrics');
+    var rows = '';
+    if (s){
+      if (s.detail) rows += '<div class="metric" style="grid-column:1/-1"><div class="metric-label">Detail</div><div class="metric-value" style="white-space:normal">' + window.esc(s.detail) + '</div></div>';
+      if (typeof s.kv_tokens === 'number') rows += '<div class="metric"><div class="metric-label">KV Cache</div><div class="metric-value">' + fmtTokTok(s.kv_tokens) + ' <span class="metric-unit">tok</span></div></div>';
+      if (Array.isArray(s.gpu_mem_mib)) s.gpu_mem_mib.forEach(function(v, i){
+        rows += '<div class="metric"><div class="metric-label">GPU ' + i + '</div><div class="metric-value">' + (typeof v === 'number' ? v.toFixed(0) : window.esc(v)) + ' <span class="metric-unit">MiB</span></div></div>';
+      });
+      if (typeof s.api_ready === 'boolean') rows += '<div class="metric"><div class="metric-label">API</div><div class="metric-value' + (s.api_ready ? '' : ' warn') + '">' + (s.api_ready ? 'serving' : 'down') + '</div></div>';
+      if (s.webui_target_port) rows += '<div class="metric"><div class="metric-label">WebUI</div><div class="metric-value">:' + window.esc(s.webui_target_port) + '</div></div>';
+    }
+    box.innerHTML = rows;
+    box.style.display = rows ? '' : 'none';
+  }
+
+  var timers = {};
+  function pollCard(card){
+    if (window.SELFTEST) return;
+    fetch('/api/cards/' + encodeURIComponent(card.id) + '/status',
+          {cache:'no-store', signal: AbortSignal.timeout(6000)})
+      .then(function(r){ if (!r.ok) throw new Error('http ' + r.status); return r.json(); })
+      .then(function(s){ renderStatus(card, s || {state:'unknown'}); })
+      .catch(function(){ renderStatus(card, {state:'unknown', detail:'status endpoint unreachable'}); })
+      .then(function(){
+        clearTimeout(timers[card.id]);
+        timers[card.id] = setTimeout(function(){ pollCard(card); }, 5000);  // 5s, independent of the 1s health poll
+      });
+  }
+
+  function actOn(id, action, name){
+    var token = window.getToken();
+    if (!token){ alert('缺少控制令牌 — 请在页面下方输入框设置。'); return; }
+    if (!window.confirm((action === 'start' ? '启动 ' : '停止 ') + name + ' ？')) return;
+    fetch('/api/cards/' + encodeURIComponent(id) + '/' + action,
+          {method:'POST', headers:{'X-Control-Token': token}, signal: AbortSignal.timeout(10000)})
+      .then(function(r){ return r.json().then(function(j){ return {ok:r.ok, status:r.status, j:j}; }); })
+      .then(function(res){
+        if (!res.ok){
+          if (res.status === 401 || res.status === 403) window.clearToken();
+          alert((res.j && (res.j.hint || res.j.error)) || ('操作失败 http ' + res.status));
+        }
+      })
+      .catch(function(e){ alert('操作失败: ' + e.message); })
+      .then(function(){ pollCard({id:id, name:name}); });
+  }
+
+  window.__renderControls = function(cards){
+    if (!cards || !cards.length) return;
+    document.getElementById('control-section').style.display = '';
+    cards.forEach(function(c){
+      cardShell(c);
+      renderStatus(c, {state:'unknown'});
+      pollCard(c);
+    });
+  };
+
+  window.__ctl = {renderStatus: renderStatus, cardShell: cardShell, PILL: PILL};
+
+  if (window.SELFTEST) return;
+  fetch('/api/cards', {cache:'no-store', signal: AbortSignal.timeout(4000)})
+    .then(function(r){ if (!r.ok) throw new Error('http ' + r.status); return r.json(); })
+    .then(function(j){
+      var cards = Array.isArray(j) ? j : (j && Array.isArray(j.cards) ? j.cards : null);
+      if (cards) window.__renderControls(cards);
+      /* else: no cards served → #control-section stays display:none */
+    })
+    .catch(function(){ /* endpoint absent (static preview) → section stays hidden */ });
+})();
+</script>
+
+<script>
+/* ---------- Sparklines (Catmull-Rom Bézier) + Zoom Modal — machinery ported
+   verbatim from the live console; disk/gpu/fan sparks are index-driven. ---------- */
+(function(){
+  var FAN_MAX_RPM = window.FAN_MAX_RPM || 5500;
+  var SPARK_W = 60, SPARK_H = 20;
+
+  function catmullRomPath(pts, tension){
+    tension = tension || 0.5;
+    if (pts.length < 2) return '';
+    if (pts.length === 2){
+      return 'M' + pts[0].x.toFixed(1) + ',' + pts[0].y.toFixed(1)
+           + ' L' + pts[1].x.toFixed(1) + ',' + pts[1].y.toFixed(1);
+    }
+    var d = 'M' + pts[0].x.toFixed(1) + ',' + pts[0].y.toFixed(1);
+    for (var i = 0; i < pts.length - 1; i++){
+      var p0 = pts[Math.max(0, i - 1)];
+      var p1 = pts[i];
+      var p2 = pts[i + 1];
+      var p3 = pts[Math.min(pts.length - 1, i + 2)];
+      var cp1x = p1.x + (p2.x - p0.x) * tension / 3;
+      var cp1y = p1.y + (p2.y - p0.y) * tension / 3;
+      var cp2x = p2.x - (p3.x - p1.x) * tension / 3;
+      var cp2y = p2.y - (p3.y - p1.y) * tension / 3;
+      d += ' C' + cp1x.toFixed(1) + ',' + cp1y.toFixed(1)
+         + ' '  + cp2x.toFixed(1) + ',' + cp2y.toFixed(1)
+         + ' '  + p2.x.toFixed(1) + ',' + p2.y.toFixed(1);
+    }
+    return d;
+  }
+
+  function buildSparkline(samples, scaleMax, color){
+    if (!samples || samples.length < 2) return '';
+    var clean = samples.map(function(v){ return (v===null||v===undefined)?null:Number(v); }).filter(function(v){return v!==null&&!isNaN(v);});
+    if (clean.length < 2) return '';
+    var dataMax = Math.max.apply(null, clean);
+    var maxVal = (scaleMax && scaleMax > 0) ? Math.max(scaleMax, dataMax) : Math.max(dataMax, 0.001);
+    if (maxVal <= 0) maxVal = 1;
+    var step = SPARK_W / Math.max(clean.length - 1, 1);
+    var pts = [];
+    for (var i = 0; i < clean.length; i++){
+      pts.push({
+        x: i * step,
+        y: SPARK_H - (clean[i] / maxVal) * SPARK_H
+      });
+    }
+    var d = catmullRomPath(pts);
+    return '<svg viewBox="0 0 ' + SPARK_W + ' ' + SPARK_H + '" width="' + SPARK_W + '" height="' + SPARK_H + '" preserveAspectRatio="none">'
+      + '<path d="' + d + '" fill="none" stroke="' + color + '" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>'
+      + '</svg>';
+  }
+
+  function colorForBar(bar){
+    if (!bar) return 'var(--online)';
+    if (bar.classList.contains('red')) return 'var(--red)';
+    if (bar.classList.contains('amber')) return 'var(--stopped)';
+    return 'var(--online)';
+  }
+
+  var zoomState = { samples: [], indices: [], title: '', maxVal: 0, unit: '', viewStart: 0, viewEnd: 0 };
+
+  function openZoomModal(title, samples, indices, maxVal, unit){
+    zoomState.samples = samples;
+    zoomState.indices = indices || [];
+    zoomState.title = title;
+    zoomState.maxVal = maxVal;
+    zoomState.unit = unit || '';
+    zoomState.viewStart = 0;
+    zoomState.viewEnd = samples.length;
+    document.getElementById('zoom-title').textContent = title;
+    document.getElementById('zoom-modal').classList.add('active');
+    document.getElementById('zoom-modal').setAttribute('aria-hidden','false');
+    renderZoomChart();
+    updateZoomStats();
+  }
+  function closeZoomModal(){
+    document.getElementById('zoom-modal').classList.remove('active');
+    document.getElementById('zoom-modal').setAttribute('aria-hidden','true');
+  }
+
+  function renderZoomChart(){
+    var s = zoomState;
+    var samples = s.samples.slice(s.viewStart, s.viewEnd);
+    var indices = s.indices.slice(s.viewStart, s.viewEnd);
+    if (!samples.length){ document.getElementById('zoom-chart').innerHTML=''; return; }
+
+    var container = document.getElementById('zoom-chart');
+    var W = container.clientWidth || 800;
+    var H = 380;
+    var padL = 44, padR = 12, padT = 12, padB = 22;
+    var plotW = W - padL - padR;
+    var plotH = H - padT - padB;
+    if (plotW < 100) plotW = 100;
+
+    var clean = samples.map(function(v){ return (v===null||v===undefined)?null:Number(v); });
+    var finite = clean.filter(function(v){return v!==null&&!isNaN(v);});
+    var dataMax = finite.length ? Math.max.apply(null, finite.concat([1])) : 1;
+    var maxVal = (s.maxVal && s.maxVal > 0) ? Math.max(s.maxVal, dataMax) : Math.max(dataMax, 1);
+
+    var step = plotW / Math.max(clean.length - 1, 1);
+
+    var gridLines = '';
+    var gridVals = [0, 0.25, 0.5, 0.75, 1];
+    for (var i = 0; i < gridVals.length; i++){
+      var y = padT + plotH * (1 - gridVals[i]);
+      var val = (maxVal * gridVals[i]).toFixed(2);
+      gridLines += '<line x1="'+padL+'" y1="'+y+'" x2="'+(W-padR)+'" y2="'+y+'" stroke="var(--border)" stroke-width="0.5" stroke-dasharray="2,3"/>';
+      gridLines += '<text x="'+(padL-6)+'" y="'+(y+3)+'" fill="var(--muted)" font-size="10" text-anchor="end">'+val+'</text>';
+    }
+
+    var pathPts = [];
+    for (var i = 0; i < clean.length; i++){
+      var v = clean[i];
+      if (v === null || isNaN(v)){ continue; }
+      var x = padL + i * step;
+      var y = padT + plotH * (1 - v / maxVal);
+      pathPts.push({x: x, y: y});
+    }
+    var path = pathPts.length > 0 ? catmullRomPath(pathPts, 0.4) : '';
+
+    var xLabels = '';
+    var labelStep = Math.max(1, Math.floor(clean.length / 5));
+    for (var i = 0; i < clean.length; i += labelStep){
+      var x = padL + i * step;
+      xLabels += '<text x="'+x+'" y="'+(H-4)+'" fill="var(--muted)" font-size="9" text-anchor="middle">'+(indices[i]||'')+'</text>';
+    }
+
+    var svg = '<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none">'
+      + '<rect x="'+padL+'" y="'+padT+'" width="'+plotW+'" height="'+plotH+'" fill="none"/>'
+      + gridLines
+      + '<path d="'+path+'" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>'
+      + '<line id="zoom-crosshair" x1="0" y1="'+padT+'" x2="0" y2="'+(padT+plotH)+'" stroke="var(--accent)" stroke-width="1" opacity="0" stroke-dasharray="3,3"/>'
+      + '<text id="zoom-tooltip" x="0" y="'+(padT+12)+'" fill="var(--accent)" font-size="11" font-family="SF Mono,JetBrains Mono,monospace" opacity="0"></text>'
+      + xLabels
+      + '</svg>';
+
+    container.innerHTML = svg;
+
+    var svgEl = container.querySelector('svg');
+    var crosshair = svgEl.querySelector('#zoom-crosshair');
+    var tooltip = svgEl.querySelector('#zoom-tooltip');
+
+    function handleMove(clientX){
+      var rect = svgEl.getBoundingClientRect();
+      if (rect.width === 0) return;
+      var relX = ((clientX - rect.left) / rect.width) * W;
+      var plotX = relX - padL;
+      if (plotX < 0 || plotX > plotW){ crosshair.setAttribute('opacity','0'); tooltip.setAttribute('opacity','0'); return; }
+      var idx = Math.round(plotX / step);
+      if (idx < 0) idx = 0;
+      if (idx >= clean.length) idx = clean.length - 1;
+      var v = clean[idx];
+      if (v === null || isNaN(v)){ crosshair.setAttribute('opacity','0'); tooltip.setAttribute('opacity','0'); return; }
+      var x = padL + idx * step;
+      var y = padT + plotH * (1 - v / maxVal);
+      crosshair.setAttribute('x1', x);
+      crosshair.setAttribute('x2', x);
+      crosshair.setAttribute('opacity', '0.6');
+      tooltip.setAttribute('x', Math.min(x + 6, W - 80));
+      tooltip.setAttribute('y', Math.max(y - 6, padT + 14));
+      var timeLabel = indices[idx] ? indices[idx] + ' \u2014 ' : '';
+      tooltip.textContent = timeLabel + Number(v).toFixed(2) + (s.unit ? ' '+s.unit : '');
+      tooltip.setAttribute('opacity', '1');
+    }
+    svgEl.onmousemove = function(e){ handleMove(e.clientX); };
+    svgEl.ontouchmove = function(e){
+      if (e.touches && e.touches[0]) handleMove(e.touches[0].clientX);
+      e.preventDefault();
+    };
+    svgEl.onmouseleave = function(){ crosshair.setAttribute('opacity','0'); tooltip.setAttribute('opacity','0'); };
+
+    container.onwheel = function(e){
+      e.preventDefault();
+      var rect = svgEl.getBoundingClientRect();
+      var focusPct = rect.width > 0 ? Math.max(0, Math.min(1, ((e.clientX - rect.left) / rect.width) * W - padL) / plotW) : 0.5;
+      var viewRange = s.viewEnd - s.viewStart;
+      var change = Math.max(1, Math.round(viewRange * 0.15));
+      if (e.deltaY < 0){
+        var shrinkL = Math.round(change * focusPct);
+        var shrinkR = change - shrinkL;
+        s.viewStart += shrinkL;
+        s.viewEnd -= shrinkR;
+        if (s.viewEnd - s.viewStart < 10){
+          var mid = Math.round((s.viewStart + s.viewEnd) / 2);
+          s.viewStart = mid - 5;
+          s.viewEnd = mid + 5;
+        }
+      } else {
+        var expandL = Math.round(change * focusPct);
+        var expandR = change - expandL;
+        s.viewStart = Math.max(0, s.viewStart - expandL);
+        s.viewEnd = Math.min(samples.length, s.viewEnd + expandR);
+      }
+      if (s.viewStart >= s.viewEnd) s.viewEnd = s.viewStart + 1;
+      renderZoomChart();
+      updateZoomStats();
+    };
+
+    var drag = null;
+    svgEl.onmousedown = function(e){
+      if (e.button !== 0) return;
+      drag = {startX: e.clientX, startVS: s.viewStart, startVE: s.viewEnd, samplesLen: samples.length};
+      container.style.cursor = 'grabbing';
+      e.preventDefault();
+    };
+    function onMove(e){
+      if (!drag) return;
+      var rect = svgEl.getBoundingClientRect();
+      if (rect.width === 0) return;
+      var dx = e.clientX - drag.startX;
+      var viewRange = drag.startVE - drag.startVS;
+      var shiftSamples = -Math.round(dx / (rect.width / viewRange));
+      var newStart = drag.startVS + shiftSamples;
+      var newEnd = drag.startVE + shiftSamples;
+      if (newStart < 0){ newStart = 0; newEnd = viewRange; }
+      if (newEnd > drag.samplesLen){ newEnd = drag.samplesLen; newStart = newEnd - viewRange; }
+      s.viewStart = Math.max(0, newStart);
+      s.viewEnd = Math.min(drag.samplesLen, newEnd);
+      renderZoomChart();
+      updateZoomStats();
+    }
+    function onUp(){ drag = null; container.style.cursor = 'crosshair'; }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }
+
+  function updateZoomStats(){
+    var s = zoomState;
+    var view = s.samples.slice(s.viewStart, s.viewEnd).filter(function(v){return v!==null&&!isNaN(v);});
+    if (!view.length){ document.getElementById('zoom-stats').innerHTML=''; return; }
+    var min = Math.min.apply(null, view);
+    var max = Math.max.apply(null, view);
+    var total = 0; for (var i=0;i<view.length;i++) total += view[i];
+    var avg = total / view.length;
+    var last = view[view.length-1];
+    document.getElementById('zoom-stats').innerHTML =
+      '<span><strong>Min:</strong> '+min.toFixed(2)+'</span>'
+      + '<span><strong>Max:</strong> '+max.toFixed(2)+'</span>'
+      + '<span><strong>Avg:</strong> '+avg.toFixed(2)+'</span>'
+      + '<span><strong>Current:</strong> '+last.toFixed(2)+'</span>'
+      + '<span><strong>Points:</strong> '+view.length+'</span>';
+  }
+
+  document.getElementById('zoom-close-btn').onclick = closeZoomModal;
+  document.getElementById('zoom-in-btn').onclick = function(){
+    var s = zoomState;
+    var range = s.viewEnd - s.viewStart;
+    var shrink = Math.max(1, Math.floor(range / 4));
+    s.viewStart += shrink;
+    s.viewEnd -= shrink;
+    if (s.viewEnd - s.viewStart < 10){
+      var mid = Math.floor((s.viewStart + s.viewEnd) / 2);
+      s.viewStart = mid - 5; s.viewEnd = mid + 5;
+    }
+    renderZoomChart();
+    updateZoomStats();
+  };
+  document.getElementById('zoom-out-btn').onclick = function(){
+    var s = zoomState;
+    var expand = Math.max(1, Math.floor((s.viewEnd - s.viewStart) / 2));
+    s.viewStart = Math.max(0, s.viewStart - expand);
+    s.viewEnd = Math.min(s.samples.length, s.viewEnd + expand);
+    renderZoomChart();
+    updateZoomStats();
+  };
+  document.getElementById('zoom-reset-btn').onclick = function(){
+    zoomState.viewStart = 0;
+    zoomState.viewEnd = zoomState.samples.length;
+    renderZoomChart();
+    updateZoomStats();
+  };
+
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape') closeZoomModal();
+  });
+  document.getElementById('zoom-modal').addEventListener('click', function(e){
+    if (e.target.id === 'zoom-modal') closeZoomModal();
+  });
+
+  var METRIC_CONFIG = {
+    'load-spark':      { key: 'cpu_load_1m',      unit: '', title: 'CPU Load (1m)',        maxMode: 'multiplier', base: function(h){return (h.cpu_cores||1)*2;} },
+    'ram-spark':       { key: 'ram_used_pct',     unit: '%', title: 'RAM Usage',            maxMode: 'pct100', threshold: true },
+    'swap-spark':      { key: 'swap_used_pct',    unit: '%', title: 'Swap Usage',           maxMode: 'pct100', threshold: true },
+    'gen-spark':       { key: 'llm_gen_tps',      unit: 'tok/s', title: 'Generation Speed', maxMode: 'auto' },
+    'prompt-spark':    { key: 'llm_prompt_tps',   unit: 'tok/s', title: 'Prompt Speed',     maxMode: 'auto' },
+    'kv-spark':        { key: 'llm_kv_fill_pct',  unit: '%', title: 'KV Cache Fill',        maxMode: 'pct100', pctMul: 100, threshold: true },
+    'queue-spark':     { key: 'llm_queue_depth',  unit: '', title: 'LLM Queue Depth',       maxMode: 'auto' },
+    'power-current-spark': { key: 'system_power_w',     unit: 'W', title: 'System Power',          maxMode: 'auto' },
+    'power-24h-spark':     { key: 'consumption_24h_kwh',unit: 'kWh', title: '24h Energy (kWh)',   maxMode: 'auto' },
+    'power-30d-spark':     { key: 'consumption_30d_kwh',unit: 'kWh', title: '30d Energy (kWh)',   maxMode: 'auto' },
+  };
+  // History stores per-mount-point usage under positional keys (OS disk first,
+  // data disk second). Disks beyond index 1 have no history series yet — their
+  // spark span simply stays empty while the value row renders (graceful).
+  var DISK_HISTORY_KEYS = ['disk_os_used_pct', 'disk_data_used_pct'];
+
+  function resolveMax(cfg, h, samples){
+    var clean = samples.filter(function(v){return v!==null&&!isNaN(v);});
+    var dataMax = clean.length ? Math.max.apply(null, clean) : 0;
+    if (cfg.maxMode === 'pct100') return 100;
+    if (cfg.maxMode === 'multiplier') return Math.max(cfg.base(h), dataMax);
+    if (cfg.maxFloor !== undefined) return Math.max(cfg.maxFloor, dataMax);
+    return Math.max(dataMax, 1);
+  }
+
+  function resolveColor(cfg, barEl){
+    if (cfg.threshold && barEl) return colorForBar(barEl);
+    return 'var(--online)';
+  }
+
+  function drawSpark(sparkId, raw, cfg, indices, h){
+    var el = document.getElementById(sparkId);
+    if (!el) return;
+    var display = cfg.pctMul ? raw.map(function(v){ return (v===null||v===undefined)?null:v*cfg.pctMul; }) : raw;
+    var clean = display.filter(function(v){ return v!==null && v!==undefined && !isNaN(v); });
+    if (!clean.length){ el.innerHTML = ''; return; }  // key absent from history → empty span, no error
+    var dataMax = Math.max.apply(null, clean);
+    var maxVal = cfg.maxMode === 'pct100' ? 100
+               : cfg.maxFloor !== undefined ? Math.max(cfg.maxFloor, dataMax)
+               : Math.max(dataMax, 1);
+    var barEl = cfg.bar ? document.getElementById(cfg.bar) : null;
+    var color = cfg.threshold ? resolveColor(cfg, barEl) : (cfg.color || 'var(--online)');
+    el.innerHTML = buildSparkline(display.slice(-60), maxVal, color);
+    el.onclick = function(){ openZoomModal(cfg.title, display, indices, maxVal, cfg.unit); };
+  }
+
+  function renderSparklines(h, samples){
+    if (!samples || !samples.length) return;
+    var indices = samples.map(function(s){return s.iso || '';});
+
+    Object.keys(METRIC_CONFIG).forEach(function(sparkId){
+      var cfg = METRIC_CONFIG[sparkId];
+      var barId = { 'load-spark':'load-bar', 'ram-spark':'ram-bar', 'swap-spark':'swap-bar', 'kv-spark':'kv-bar' }[sparkId];
+      if (barId) cfg = Object.assign({}, cfg, {bar: barId, threshold: true});
+      drawSpark(sparkId, samples.map(function(s){ return s[cfg.key]; }), cfg, indices, h);
+    });
+
+    // Disk sparks — one per disks[] element rendered this cycle
+    var diskRows = document.getElementById('disk-rows');
+    var diskCount = diskRows ? diskRows.querySelectorAll('#disk-spark-0, [id^="disk-spark-"]').length : 0;
+    for (var di = 0; di < diskCount; di++){
+      var dKey = DISK_HISTORY_KEYS[di];
+      if (!dKey) continue;
+      drawSpark('disk-spark-' + di, samples.map(function(s){ return s[dKey]; }),
+        { title: (h.disks && h.disks[di] && (h.disks[di].label || h.disks[di].path)) || ('Disk ' + di + ' Usage'),
+          unit: '%', maxMode: 'pct100', threshold: true, bar: 'disk-bar-' + di },
+        indices, h);
+    }
+
+    // GPU sparks — index-driven off h.gpus.length (no GPU0-3 hardcoding)
+    var gpuCount = (h && h.gpus) ? h.gpus.length : 0;
+    for (var gi = 0; gi < gpuCount; gi++) {
+      var gpuDefs = [
+        { sparkId: 'gpu'+gi+'-util-spark', key: 'gpu'+gi+'_util', title: 'GPU '+gi+' Utilization', unit: '%', maxMode: 'pct100', bar: 'gpu'+gi+'-util-bar' },
+        { sparkId: 'gpu'+gi+'-temp-spark', key: 'gpu'+gi+'_temp_junction', title: 'GPU '+gi+' Junction Temp', unit: '°C', maxMode: 'auto', maxFloor: 100 },
+        { sparkId: 'gpu'+gi+'-temp-core-spark', key: 'gpu'+gi+'_temp_core', title: 'GPU '+gi+' Core Temp', unit: '°C', maxMode: 'auto', maxFloor: 100 },
+        { sparkId: 'gpu'+gi+'-vram-spark', key: 'gpu'+gi+'_vram_pct', title: 'GPU '+gi+' VRAM', unit: '%', maxMode: 'pct100', threshold: true },
+        { sparkId: 'gpu'+gi+'-power-spark', key: 'gpu'+gi+'_power', title: 'GPU '+gi+' Power', unit: 'W', maxMode: 'auto' }
+      ];
+      gpuDefs.forEach(function(cfg){ drawSpark(cfg.sparkId, samples.map(function(s){ return s[cfg.key]; }), cfg, indices, h); });
+    }
+
+    // Fan sparks — one per connected fan
+    var fanCount = (h && h.fans) ? h.fans.length : 0;
+    for (var fi = 0; fi < fanCount; fi++) {
+      var fanEl = document.getElementById('fan' + fi + '-rpm-spark');
+      if (!fanEl) continue;
+      var fanRaw = samples.map(function(s){ return s['fan' + fi + '_rpm']; });
+      var fanClean = fanRaw.filter(function(v){return v!==null&&!isNaN(v);});
+      var fanMax = Math.max(fanClean.length ? Math.max.apply(null, fanClean) : 0, FAN_MAX_RPM * 0.5);
+      fanEl.innerHTML = buildSparkline(fanRaw.slice(-60), fanMax, 'var(--online)');
+      fanEl.onclick = function(fanTitle, fanData, fanIdx, fanMaxV){
+        return function(){ openZoomModal(fanTitle, fanData, fanIdx, fanMaxV, 'RPM'); };
+      }(h.fans[fi].name + ' RPM', fanRaw, indices, fanMax);
+    }
+
+    // LLM v2 latency sparks — rendered only when the backend emits these history keys
+    var llmExtraKeys = [
+      { sparkId: 'llm-ttft-spark',   key: 'llm_ttft_ms',        unit: 'ms', title: 'Time To First Token' },
+      { sparkId: 'llm-tpot-spark',   key: 'llm_tpot_ms',        unit: 'ms', title: 'Time Per Output Token' },
+      { sparkId: 'llm-e2e-spark',    key: 'llm_e2e_ms',         unit: 'ms', title: 'E2E Latency' },
+      { sparkId: 'llm-prefix-spark', key: 'llm_prefix_hit_pct', unit: '%',  title: 'Prefix Cache Hit Rate', maxMode: 'pct100' },
+      { sparkId: 'llm-cache-tok-spark', key: 'llm_prompt_cached_pct', unit: '%', title: 'Cache Tokens (24h)', maxMode: 'pct100' },
+      { sparkId: 'llm-req-spark',    key: 'llm_total_requests', unit: '',   title: 'Total Requests' },
+      { sparkId: 'llm-err-spark',    key: 'llm_error_count_5m', unit: '',   title: 'Errors (5m)', color: 'var(--red)' }
+    ];
+    llmExtraKeys.forEach(function(cfg){ drawSpark(cfg.sparkId, samples.map(function(s){ return s[cfg.key]; }), cfg, indices, h); });
+  }
+
+  window._renderSparklines = renderSparklines;
+})();
+</script>
+
+<script>
+/* ============ Self-test harness — ONLY active with ?selftest=1 ============
+   Asserts data-driven tile counts + section-hide matrix + pill vocabulary from
+   injected fixtures (no network). Result lands in document.title. */
+(function(){
+  if (!window.SELFTEST) return;
+  var fails = [], checks = 0;
+  function ok(cond, msg){ checks++; if (!cond) fails.push(msg); }
+  function gpu(i){ return {card:'TestCard', use_pct:50+i, vram_alloc_pct:40, temp_edge_c:40+i, temp_junction_c:55+i,
+    temp_memory_c:50, power_w:100+i, vram_total_gb:68.7, vram_used_gb:30.1, pcie_gen_cur:2, pcie_gen_max:5,
+    pcie_width_cur:16, pcie_width_max:16}; }
+  function fan(n){ return {name:n, rpm:3000}; }
+  var SYS = {cpu_cores:32, load_1m:1.5, load_5m:1.2, load_15m:1.0, mem_total:6.7e10, mem_available:3e10,
+    mem_used:3.7e10, mem_used_pct:55, swap_total:8e9, swap_free:7e9, swap_used_pct:12, uptime_s:100000,
+    updated_iso:'2026-09-07 01:59:44'};
+  var DISKS = [{path:'/', label:'OS /', total:9e11, used:4e11, free:5e11, used_pct:44},
+               {path:'/mnt/data', label:'Data', total:8e12, used:3e12, free:5e12, used_pct:38}];
+  var A = window.__app;
+  function q(sel){ return document.querySelectorAll(sel).length; }
+  function disp(id){ return document.getElementById(id).style.display; }
+  function hidden(id){ return document.getElementById(id).classList.contains('is-hidden'); }
+
+  // ---- Fixture 1: full workstation (golden shape) ----
+  var F1 = Object.assign({}, SYS, {
+    disks: DISKS, gpus:[gpu(0),gpu(1),gpu(2),gpu(3)],
+    fans:[fan('FAN1'),fan('FAN2'),fan('FAN3'),fan('FAN4'),fan('FAN5'),fan('FAN6'),fan('FANA'),fan('FANB'),fan('FANC'),fan('FAND')],
+    power:{current_w:898, consumption_24h_kwh:12.463, consumption_30d_kwh:148.035},
+    llm:{backend:'vllm', model:'demo-model', llm_port:8003, llm_container:'demo-ctr', last_gen_tps:23.1,
+      last_prompt_tps:600, kv_cache_fill_pct:31, kv_cache_used_tokens:52000, kv_cache_max_tokens:168000,
+      queue_depth:0, queue_capacity:1, server_uptime_s:1000, running:1, waiting:0, ttft_ms:120, tpot_ms:41,
+      e2e_ms:9000, queue_ms:0, prefix_hit_pct:12, num_preemptions:0, total_requests:424, error_count_5m:0,
+      spec_accept_pct:null, last_error:null, gen_total_24h:1.2e6, prompt_total_24h:8e6,
+      prompt_cached_total_24h:9e5, prompt_cached_pct_24h:11, gen_total_30d:3e7, prompt_total_30d:2e8,
+      prompt_cached_total_30d:2e7}});
+  A.applyHealth(F1);
+  ok(q('#gpu-metrics > .health-card') === 4, 'F1 gpu tiles=4, got '+q('#gpu-metrics > .health-card'));
+  ok(disp('gpu-section') !== 'none', 'F1 gpu-section visible');
+  ok(q('#fan-metrics > .fan-tile') === 10, 'F1 fan tiles=10, got '+q('#fan-metrics > .fan-tile'));
+  ok(disp('cooling-card') !== 'none', 'F1 cooling-card visible');
+  ok(!hidden('power-group'), 'F1 power-group visible');
+  ok(q('#disk-rows > .metric') === 2, 'F1 disk rows=2, got '+q('#disk-rows > .metric'));
+  ok(disp('llm-card') !== 'none', 'F1 llm-card visible');
+  ok(document.getElementById('llm-endpoint').textContent.indexOf(':8003') !== -1, 'F1 llm endpoint has :8003');
+  ok(document.getElementById('llm-endpoint').textContent.indexOf('demo-ctr') !== -1, 'F1 endpoint has container');
+  ok(disp('llm-spec-row') === 'none', 'F1 spec_accept_pct null → llm-spec-row hidden');
+
+  // ---- Fixture 2: laptop — system keys only ⇒ GPU/Cooling/Power/LLM all hidden ----
+  var F2 = Object.assign({}, SYS, {disks: DISKS});
+  A.applyHealth(F2);
+  ok(disp('gpu-section') === 'none', 'F2 gpu-section hidden');
+  ok(q('#gpu-metrics > .health-card') === 0, 'F2 gpu tiles=0');
+  ok(disp('cooling-card') === 'none', 'F2 cooling-card hidden');
+  ok(hidden('power-group'), 'F2 power-group hidden');
+  ok(disp('llm-card') === 'none', 'F2 llm-card hidden');
+  ok(q('#disk-rows > .metric') === 2, 'F2 disk rows still 2');
+  ok(document.getElementById('load-value').textContent === '1.50', 'F2 load value bound');
+
+  // ---- Fixture 3: 2-GPU variant + backend:null ----
+  var F3 = Object.assign({}, SYS, {disks: DISKS, gpus:[gpu(0),gpu(1)], llm:{backend:null}});
+  A.applyHealth(F3);
+  ok(q('#gpu-metrics > .health-card') === 2, 'F3 gpu tiles=2 (array length drives count)');
+  ok(disp('llm-card') === 'none', 'F3 llm.backend null → hidden');
+
+  // ---- Controls: /api/cards-driven, full state vocabulary ----
+  var CARDS = [{id:'modelA', name:'Model A', icon:'gpu', actions:['start','stop']},
+               {id:'modelB', name:'Model B', icon:'cpu', actions:['start','stop']}];
+  window.__renderControls(CARDS);
+  ok(q('#control-grid > .health-card') === 2, 'ctl cards=2, got '+q('#control-grid > .health-card'));
+  ok(disp('control-section') !== 'none', 'ctl section visible with cards');
+  ok(q('#ctl-modelA-actions button') === 2, 'ctl A has start+stop');
+  var VOCAB = {ready:['online','Ready'], running:['online','Ready'], starting:['busy','Starting'],
+               loading:['busy','Loading'], stopped:['internal','Stopped'], unknown:['err','Unknown']};
+  Object.keys(VOCAB).forEach(function(st){
+    window.__ctl.renderStatus(CARDS[0], {state:st, updated_at:'2026-09-07T01:00:00'});
+    var pill = document.getElementById('ctl-modelA-pill');
+    ok(pill.textContent === VOCAB[st][1], 'pill '+st+' text='+VOCAB[st][1]+', got '+pill.textContent);
+    ok(pill.classList.contains(VOCAB[st][0]), 'pill '+st+' class '+VOCAB[st][0]);
+    var start = document.querySelector('#ctl-modelA-actions [data-act=start]');
+    var stop  = document.querySelector('#ctl-modelA-actions [data-act=stop]');
+    ok(start.disabled === (['ready','running','starting','loading'].indexOf(st) !== -1), 'start disabled @'+st);
+    ok(stop.disabled === (st === 'stopped'), 'stop disabled @'+st);
+  });
+  window.__ctl.renderStatus(CARDS[1], {state:'totally_new_state'});   // unknown enum ⇒ neutral fallback, no throw
+  ok(document.getElementById('ctl-modelB-pill').textContent === 'totally_new_state', 'pill fallback shows raw state');
+  window.__ctl.renderStatus(CARDS[0], {state:'ready', kv_tokens:52000, gpu_mem_mib:[1000,2000,3000,4000], api_ready:true});
+  ok(q('#ctl-modelA-metrics .metric') === 6, 'detail rows kv+4xgpu_mem+api=6, got '+q('#ctl-modelA-metrics .metric'));
+
+  // ---- Links: fallback mode under static preview ----
+  ok(q('#links-grid > a.card') >= 6, 'links fallback cards, got '+q('#links-grid > a.card'));
+  ok(document.getElementById('links-source').textContent === 'fallback', 'links fallback label');
+  window.renderLinks([{name:'Ext', url:'http://x:1', icon:'book'}, {name:'Int', icon:'cloud', port_check:false}], 'test');
+  ok(q('#links-grid > a.card') === 1 && q('#links-grid > div.card.internal') === 1, 'link external=a, internal=div');
+  ok(document.querySelectorAll('#links-grid a[href]').length === 1, 'external card has href');
+
+  document.title = fails.length ? ('SELFTEST FAIL ' + fails.length + '/' + checks + ': ' + fails[0])
+                                : ('SELFTEST PASS ' + checks + '/' + checks);
+})();
+</script>
+</body>
+</html>
