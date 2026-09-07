@@ -92,3 +92,27 @@ console/
 3. `serve` 后：`/`、`/health.json`、`/api/cards`、`/api/cards/<id>/status` 200；`POST` 无 token 403。
 4. 前端在无 gpus/fans 的假 health.json 下隐藏对应区块（curl HTML + 手动 DOM 断言或 headless）。
 5. 全部改动文件过 `python3 -m py_compile` / 现有 lint。
+
+## 7. v0.2.0 打包布局（2026-09-07 追加；本节取代 §1 目录表与 §2 中 `data_dir` 默认值、"bundle root"锚点的相关行，§0 硬约束全部继续有效）
+
+发布形态从"整目录 bundle"升级为 PyPI 包 `portable-console`（0.2.0），采用 src 布局；零第三方依赖约束不变（打包只用 setuptools 后端，运行时 stdlib only）。
+
+```
+console/                          # 仓库目录（发布 sdist / 本地源码树）
+  pyproject.toml MANIFEST.in      # setuptools 后端；package-dir src；package-data 打进
+                                  # web/*、systemd/*.service、console.config.example.json
+  console.py                      # 兼容薄壳：sys.path 注入 src/ 后转发 portable_console.cli:main
+  install.sh                      # 兼容薄壳：转发 portable-console install|uninstall（见 README）
+  src/portable_console/           # 安装态包根（site-packages/portable_console）
+    cli.py __init__.py（__version__="0.2.0"）__main__.py paths.py
+    daemon/…  server/…            # 原样迁入，内部一律 portable_console.* 绝对导入
+    web/index.html  systemd/*.service  console.config.example.json
+```
+
+**路径锚点（全部收拢进 `paths.py`，v0.1.0 分散的 BUNDLE_ROOT 语义退役为别名）**：
+
+- `root_dir` = 配置文件所在目录（无配置文件时为 cwd）。cards 脚本相对路径、相对 `data_dir`、渲染单元的 `WorkingDirectory` 都以它为锚（取代 v0.1.0 的 bundle root；`ConsoleConfig.bundle_root` 保留为 `root_dir` 的弃用属性别名）。
+- `data_dir` 解析优先级：配置显式 `data_dir`（相对 root_dir）＞ **配置旁已存在的 `data/` 目录**（v0.1.0 bundle 向后兼容：老用户整目录拷走后行为不变）＞ `$XDG_DATA_HOME/portable-console` ＞ `~/.local/share/portable-console`。示例配置已删除 `"data_dir": "data"` 行——这是 v0.2.0 唯一有意行为偏差：**全新安装**落 XDG 数据目录；已在 bundle 目录里跑过 v0.1.0 的用户不受影响。
+- 包内资源（门户 `web/`、`systemd/` 模板、示例配置）恒从**包目录**解析（`paths.package_dir()`），与 root_dir/data_dir 解耦——pipx 安装后包在 venv 里、数据在 `$XDG_DATA_HOME` 下，互不纠缠。
+
+**`install` / `uninstall` 子命令**（install.sh 全部逻辑的 Python 移植，行为一致）：`install [--port N] [--no-systemd] [--config PATH] [--data-dir PATH]` → 配置默认 `$XDG_CONFIG_HOME/portable-console/console.config.json`（缺席时从示例复制，幂等）→ 令牌 `<data_dir>/console.token` 0600（O_CREAT|O_EXCL，绝不覆盖）→ 渲染 `systemd/*.service`（模板占位符 `%RUN%`/`%DIR%`/`%ENV%`：ExecStart 用 PATH 上的 `portable-console`，源码态兜底 `python3 -m portable_console` + `Environment=PYTHONPATH=<src>`）装入 `$XDG_CONFIG_HOME/systemd/user/`，daemon-reload 失败仅警告不中断。`uninstall` 停用并移除两个用户单元，配置与数据保留。相对 `--config` 现相对 **cwd** 解析（原相对 bundle 根；从 bundle 目录内运行结果相同）。运行时子命令（daemon/serve/card/token）未显式 `--config` 时的发现级联：`./console.config.json` 存在 → 用它（v0.1.0 bundle 体验不变）；否则 `$XDG_CONFIG_HOME/portable-console/console.config.json` 存在 → 用它（pipx 装完 `install` 后任意目录裸跑 `portable-console serve` 即可，无需再带 `--config`）；两者皆无 → 按 cwd 默认报 v0.1.0 同款错误。`install` 自身的写入目标不受级联影响，恒为 XDG 路径（`_config_path(args, install_target=True)`）。

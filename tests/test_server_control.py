@@ -6,9 +6,9 @@ from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))  # v0.2.0: src layout
 
-from server import control  # noqa: E402
+from portable_console.server import control  # noqa: E402
 
 
 def sh(root: Path, name: str, body: str) -> str:

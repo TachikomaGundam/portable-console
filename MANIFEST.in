@@ -1,0 +1,8 @@
+include README.md
+include LICENSE
+include DESIGN.md
+include pyproject.toml
+include MANIFEST.in
+include install.sh
+include console.py
+recursive-include tests *.py

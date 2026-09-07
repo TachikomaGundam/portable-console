@@ -19,7 +19,7 @@ import shutil
 from typing import Any
 
 if False:  # pragma: no cover - type-only
-    from daemon.config import ConsoleConfig
+    from portable_console.daemon.config import ConsoleConfig
 
 # Module-level so tests can point it at a fabricated tree.
 PROC_ROOT = "/proc"

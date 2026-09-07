@@ -9,9 +9,9 @@ from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))  # v0.2.0: src layout
 
-from server.server import build_server  # noqa: E402
+from portable_console.server.server import build_server  # noqa: E402
 
 TOKEN = "s3cret"
 
@@ -62,7 +62,9 @@ def make_bundle(tmp_path: Path, *, with_token: bool = True) -> tuple[Path, dict]
 
 
 def serve(root: Path, cfg: dict):
-    httpd, _ = build_server(cfg, root)
+    # v0.2.0: the portal's static root ships in the package; tests keep their
+    # own fixture portal via the explicit web_root override.
+    httpd, _ = build_server(cfg, root, web_root=root / "web")
     thread = threading.Thread(target=httpd.serve_forever, daemon=True)
     thread.start()
     return httpd, thread

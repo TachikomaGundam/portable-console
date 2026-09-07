@@ -11,9 +11,9 @@ import subprocess
 
 import pytest
 
-from daemon.config import ConsoleConfig
-from daemon.plugins import nvidia
-from daemon.plugins.nvidia import NvidiaCollector, get_gpu_stats
+from portable_console.daemon.config import ConsoleConfig
+from portable_console.daemon.plugins import nvidia
+from portable_console.daemon.plugins.nvidia import NvidiaCollector, get_gpu_stats
 
 GOLDEN_GPU_KEYS = {
     "card", "use_pct", "vram_alloc_pct", "temp_edge_c", "temp_junction_c",

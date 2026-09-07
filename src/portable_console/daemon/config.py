@@ -3,6 +3,13 @@
 Loads `console.config.json`; every relative path is resolved against the
 bundle root (the directory containing `console.py`). Zero third-party
 dependencies; Python 3.10+ stdlib only.
+
+v0.2.0 (packaging): this module moved into the portable_console package
+(console/src/portable_console/daemon/config.py). The "bundle root" anchor is
+now `root_dir` = the directory containing the config file (or cwd when there
+is none); all resolution helpers live in portable_console.paths. Relative
+`data_dir` semantics are unchanged (resolved against root_dir); when the key
+is absent the XDG-aware portable_console.paths.default_data_dir applies.
 """
 from __future__ import annotations
 
@@ -11,7 +18,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from portable_console import paths
+
 # bundle root = console/ (this file lives at console/daemon/config.py)
+# v0.2.0: kept only as a deprecated alias for the package directory (this file
+# now lives at .../portable_console/daemon/config.py). No real uses remain —
+# use portable_console.paths / ConsoleConfig.root_dir instead.
 BUNDLE_ROOT: Path = Path(__file__).resolve().parents[1]
 
 
@@ -90,7 +102,9 @@ class PluginsConfig:
 
 @dataclass(frozen=True, slots=True)
 class ConsoleConfig:
-    bundle_root: Path
+    # v0.2.0: field `bundle_root` renamed to `root_dir` (the config file's
+    # directory, or cwd). `bundle_root` survives as a deprecated alias below.
+    root_dir: Path
     listen: ListenConfig
     data_dir: Path
     poll_interval_s: float
@@ -100,6 +114,11 @@ class ConsoleConfig:
     # carries them through, as opaque validated-JSON objects.
     cards: tuple[dict[str, Any], ...] = ()
     links: tuple[dict[str, Any], ...] = ()
+
+    @property
+    def bundle_root(self) -> Path:
+        """Deprecated v0.1.0 alias for root_dir (kept to minimize churn)."""
+        return self.root_dir
 
 
 def _parse_bmc(raw: Any) -> BmcConfig | None:
@@ -161,7 +180,9 @@ def load(path: str | Path) -> ConsoleConfig:
     except json.JSONDecodeError as exc:
         raise ConfigError(f"config file is not valid JSON: {p}: {exc}") from exc
 
-    root = BUNDLE_ROOT
+    # v0.2.0: was `root = BUNDLE_ROOT` (the console.py directory). The anchor
+    # is now the config file's own directory (portable_console.paths.root_dir).
+    root = paths.root_dir(p)
     listen_raw = _as_dict(raw.get("listen", {}), "listen")
     listen = ListenConfig(
         host=str(listen_raw.get("host", "127.0.0.1")),
@@ -174,10 +195,19 @@ def load(path: str | Path) -> ConsoleConfig:
         raise ConfigError("cards must be a list of objects")
     if not isinstance(links, list) or any(not isinstance(l, dict) for l in links):
         raise ConfigError("links must be a list of objects")
+    # v0.2.0: an explicit `data_dir` still wins, resolved against root (mirrors
+    # the old `_resolve_path(root, ...)` semantics). When the key is absent we
+    # no longer default to bundle-relative "data"; instead paths.default_data_dir
+    # applies the legacy <config_dir>/data rule, then XDG_DATA_HOME, then
+    # ~/.local/share/portable-console.
+    if "data_dir" in raw:
+        data_dir = _resolve_path(root, str(raw["data_dir"]))
+    else:
+        data_dir = paths.default_data_dir(p)
     return ConsoleConfig(
-        bundle_root=root,
+        root_dir=root,
         listen=listen,
-        data_dir=_resolve_path(root, str(raw.get("data_dir", "data"))),
+        data_dir=data_dir,
         poll_interval_s=_as_float(
             raw.get("poll_interval_s", 1), "poll_interval_s"
         ),

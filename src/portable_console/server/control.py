@@ -6,6 +6,9 @@ and every request just execs the configured script. Script strings come from
 TRUSTED local config only — no user input ever reaches argv (shlex.split here
 is safe for exactly that reason). Relative script paths resolve against the
 bundle root via subprocess cwd (§2 path rule).
+
+v0.2.0: the cwd anchor is named `root_dir` (config file's directory, see
+portable_console.paths) where v0.1.0 called it bundle_root. Same semantics.
 """
 from __future__ import annotations
 
@@ -26,12 +29,13 @@ class CardTimeoutError(RuntimeError):
 class Card:
     """One control card: identity + start/stop/status scripts from config."""
 
-    def __init__(self, spec: dict[str, Any], bundle_root: Path) -> None:
+    def __init__(self, spec: dict[str, Any], root_dir: Path) -> None:
         self.id: str = str(spec["id"])
         self.name: str = str(spec.get("name", self.id))
         self.icon: str = str(spec.get("icon", "card"))
         self.timeout_s: float = float(spec.get("timeout_s", DEFAULT_TIMEOUT_S))
-        self.bundle_root = bundle_root
+        # v0.2.0: was `self.bundle_root` (identical role, new name + anchor).
+        self.root_dir = root_dir
         self._scripts: dict[str, str] = dict(spec.get("scripts", {}))
 
     def run(self, verb: str) -> tuple[int, str, str]:
@@ -50,7 +54,7 @@ class Card:
         try:
             p = subprocess.run(
                 argv, capture_output=True, text=True,
-                timeout=self.timeout_s, cwd=self.bundle_root,
+                timeout=self.timeout_s, cwd=self.root_dir,
             )
         except subprocess.TimeoutExpired as exc:
             raise CardTimeoutError(
@@ -62,9 +66,9 @@ class Card:
 class CardController:
     """Registry of cards keyed by id; the whole control-plane API surface."""
 
-    def __init__(self, cards: list[dict[str, Any]], bundle_root: Path) -> None:
+    def __init__(self, cards: list[dict[str, Any]], root_dir: Path) -> None:
         self.cards: dict[str, Card] = {
-            str(spec["id"]): Card(spec, bundle_root) for spec in cards
+            str(spec["id"]): Card(spec, root_dir) for spec in cards
         }
 
     def list_cards(self) -> list[dict[str, Any]]:

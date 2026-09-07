@@ -12,8 +12,8 @@ from typing import Any
 
 import pytest
 
-from daemon.config import ConsoleConfig
-from daemon.plugins import llm
+from portable_console.daemon.config import ConsoleConfig
+from portable_console.daemon.plugins import llm
 
 GOLDEN_LLM_KEYS = {
     "last_gen_tps", "last_prompt_tps", "kv_cache_fill_pct",

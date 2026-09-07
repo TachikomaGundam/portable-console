@@ -23,13 +23,20 @@ from collections.abc import Callable
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+# v0.2.0: this file moved into the portable_console package; parents[1] is now
+# the package dir, not the old console/ bundle. The constant is kept only for
+# the direct-run bootstrap below — real path anchors come from
+# portable_console.paths (web root) and the config's root_dir (state anchor).
 BUNDLE_ROOT = Path(__file__).resolve().parents[1]
 
 if __name__ == "__main__" and not __package__:  # direct run: python3 server/server.py
-    sys.path.insert(0, str(BUNDLE_ROOT))  # standard __package__ bootstrap
-    __package__ = "server"
+    # standard __package__ bootstrap — v0.2.0: src/ root goes on sys.path so
+    # the absolute portable_console.* imports below resolve.
+    sys.path.insert(0, str(BUNDLE_ROOT.parent))
+    __package__ = "portable_console.server"
 
-from .control import ACTIONS, CardController, CardTimeoutError  # noqa: E402
+from portable_console import paths  # noqa: E402
+from portable_console.server.control import ACTIONS, CardController, CardTimeoutError  # noqa: E402
 TOKEN_NAME = "console.token"
 DATA_FILES = frozenset({"health.json", "health.history.json", "usage-stats.json", "stats.json"})
 DEFAULT_HOST = "127.0.0.1"
@@ -227,22 +234,38 @@ def _config_view(cfg: Any) -> dict[str, Any]:
         "listen": {"host": getattr(listen, "host", None),
                    "port": getattr(listen, "port", None)},
         "data_dir": getattr(cfg, "data_dir", "data"),
+        # v0.2.0: carry the new anchor through (dataclass ConsoleConfig.root_dir)
+        "root_dir": getattr(cfg, "root_dir", None),
         "cards": list(getattr(cfg, "cards", ()) or ()),
         "links": list(getattr(cfg, "links", ()) or ()),
     }
 
 
-def build_server(cfg: Any, bundle_root: Path | str | None = None,
+def build_server(cfg: Any, root_dir: Path | str | None = None,
+                 web_root: Path | str | None = None,
                  ) -> tuple[ThreadingHTTPServer, CardController]:
-    """Assemble (server, controller) from config dict or ConsoleConfig; port 0 OK."""
+    """Assemble (server, controller) from config dict or ConsoleConfig; port 0 OK.
+
+    v0.2.0: `bundle_root` param renamed `root_dir` (same positional role: card
+    cwd + relative data_dir anchor; default is now the config's root_dir, then
+    cwd — was BUNDLE_ROOT). The portal's static root no longer lives under the
+    anchor: it ships in the package (paths.web_root()); tests may pass an
+    explicit `web_root`.
+    """
     cfg = _config_view(cfg)
-    root = Path(bundle_root) if bundle_root else BUNDLE_ROOT
+    if root_dir is not None:
+        root = Path(root_dir)
+    elif cfg.get("root_dir"):
+        root = Path(str(cfg["root_dir"]))
+    else:
+        root = paths.root_dir(None)  # cwd anchor (v0.1.0: BUNDLE_ROOT)
     listen: dict[str, Any] = cfg.get("listen") or {}
     controller = CardController(cfg.get("cards") or [], root)
     data_dir = Path(str(cfg.get("data_dir") or "data"))
     if not data_dir.is_absolute():
         data_dir = root / data_dir
-    deps = HandlerDeps(cfg=cfg, controller=controller, web_root=root / "web",
+    web = Path(web_root) if web_root is not None else paths.web_root()
+    deps = HandlerDeps(cfg=cfg, controller=controller, web_root=web,
                        data_dir=data_dir, token_file=data_dir / TOKEN_NAME)
     httpd = ThreadingHTTPServer((str(listen.get("host") or DEFAULT_HOST),
                                  int(listen.get("port") or DEFAULT_PORT)),
@@ -260,15 +283,15 @@ def _load_config() -> dict[str, Any]:
     When daemon/ is absent or unfinished, we honestly degrade to the plain
     JSON loader instead of crashing.
     """
-    if str(BUNDLE_ROOT) not in sys.path:
-        sys.path.insert(0, str(BUNDLE_ROOT))
-    import importlib
-    path = BUNDLE_ROOT / "console.config.json"
+    # v0.2.0: no sys.path surgery needed inside the package; config candidates
+    # are cwd/console.config.json (v0.1.0: BUNDLE_ROOT-relative) falling back to
+    # the packaged example. daemon.config stays a lazy, optional-at-boot import.
+    path = paths.root_dir(None) / "console.config.json"
     if not path.is_file():
-        path = BUNDLE_ROOT / "console.config.example.json"
+        path = paths.example_config()
     raw: dict[str, Any] = json.loads(path.read_text("utf-8")) if path.is_file() else {}
     try:
-        daemon_config = importlib.import_module("daemon.config")
+        from portable_console.daemon import config as daemon_config
     except Exception as exc:  # noqa: BLE001 — bootstrap: daemon/ optional at boot
         print(f"[console] daemon.config unavailable ({exc!r}); raw JSON loader only",
               file=sys.stderr)
@@ -279,10 +302,11 @@ def _load_config() -> dict[str, Any]:
     return raw
 
 
-def main(cfg: Any = None, bundle_root: Path | str | None = None) -> None:
+def main(cfg: Any = None, root_dir: Path | str | None = None) -> None:
+    # v0.2.0: param renamed bundle_root -> root_dir (same role, build_server arg).
     if cfg is None:
         cfg = _load_config()
-    httpd, _ = build_server(cfg, bundle_root)
+    httpd, _ = build_server(cfg, root_dir)
     host, port = httpd.server_address[0], httpd.server_address[1]
     print(f"[console] serving http://{host}:{port} (Ctrl-C to stop)", file=sys.stderr)
     try:
@@ -301,4 +325,4 @@ if __name__ == "__main__":
         root_arg = Path(argv.pop(i + 1))
         _ = argv.pop(i)
     config = json.loads(Path(argv[0]).read_text("utf-8")) if argv else None
-    main(config, bundle_root=root_arg)
+    main(config, root_dir=root_arg)

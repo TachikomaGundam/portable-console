@@ -25,10 +25,10 @@ import shutil
 import subprocess
 from typing import Any
 
-from daemon.plugins.base import run_argv
+from portable_console.daemon.plugins.base import run_argv
 
 if False:  # pragma: no cover - type-only
-    from daemon.config import BmcConfig, ConsoleConfig
+    from portable_console.daemon.config import BmcConfig, ConsoleConfig
 
 _SDR_TIMEOUT_S = 5.0
 _POWER_TIMEOUT_S = 3.0

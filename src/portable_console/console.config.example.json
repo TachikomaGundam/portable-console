@@ -1,6 +1,5 @@
 {
   "listen": { "host": "127.0.0.1", "port": 8090 },
-  "data_dir": "data",
   "poll_interval_s": 1,
   "history": { "max_samples": 720 },
   "plugins": {

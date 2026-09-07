@@ -13,19 +13,21 @@ from typing import Any
 
 import pytest
 
-_BUNDLE = Path(__file__).resolve().parents[1]
+# v0.2.0: package moved to src/ layout — point sys.path at src/portable_console
+_BUNDLE = Path(__file__).resolve().parents[1] / "src"
 if str(_BUNDLE) not in sys.path:
     sys.path.insert(0, str(_BUNDLE))
 
-from daemon.config import (ConsoleConfig, HistoryConfig, ListenConfig,  # noqa: E402
-                           LlmPluginConfig, NvidiaPluginConfig,
-                           PluginsConfig, SystemPluginConfig)
+from portable_console.daemon.config import (  # noqa: E402
+    ConsoleConfig, HistoryConfig, ListenConfig,
+    LlmPluginConfig, NvidiaPluginConfig,
+    PluginsConfig, SystemPluginConfig)
 
 
 def _make_config(tmp_path: Path, **plugin_over: Any) -> ConsoleConfig:
     """Minimal valid ConsoleConfig rooted at a tmp data dir."""
     return ConsoleConfig(
-        bundle_root=tmp_path,
+        root_dir=tmp_path,  # v0.2.0: was bundle_root (same role)
         listen=ListenConfig(),
         data_dir=tmp_path / "data",
         poll_interval_s=1,

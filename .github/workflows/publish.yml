@@ -1,0 +1,44 @@
+# 发布 portable-console 到 PyPI（GitHub Actions + OIDC trusted publishing，无需 API token）。
+#
+# 一次性前置（在 pypi.org 账号设置里完成）：
+#   1. 项目页（或 "Add a Pending Publisher"）注册可信发布者：
+#      Publisher type: GitHub Action
+#      Repository owner: TachikomaGundam
+#      Repository name:  portable-console
+#      Workflow name:    publish.yml        （必须与本文件名逐字一致）
+#      Environment:      pypi               （即下方 jobs.pypi.environment）
+#   2. 本文件必须位于仓库根 .github/workflows/ 下、且打在将触发发布的 tag/commit 上。
+#
+# 触发：GitHub Release 发布（published）或手动 workflow_dispatch。
+name: Publish to PyPI
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write # OIDC 令牌，PyPI trusted publishing 必需
+
+jobs:
+  pypi:
+    runs-on: ubuntu-latest
+    environment: pypi
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build sdist + wheel
+        run: |
+          python -m pip install --upgrade build twine
+          python -m build
+          twine check dist/*
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          skip-existing: true

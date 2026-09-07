@@ -25,7 +25,7 @@ from pathlib import Path
 from typing import Any, Callable, Protocol
 
 if False:  # pragma: no cover - type-only import, avoids runtime cycle
-    from daemon.config import ConsoleConfig
+    from portable_console.daemon.config import ConsoleConfig
 
 PROBE_OK_TTL = 60.0
 PROBE_FAIL_TTL = 15.0

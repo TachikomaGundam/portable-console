@@ -3,3 +3,7 @@ console.config.json
 __pycache__/
 *.pyc
 .pytest_cache/
+# v0.2.0 packaging artifacts
+build/
+dist/
+*.egg-info/

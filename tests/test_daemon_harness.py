@@ -13,9 +13,9 @@ from typing import Any
 
 import pytest
 
-from daemon.config import ConsoleConfig
-from daemon.harness import (Harness, build_snapshot, write_json_atomic)
-from daemon.plugins.base import Prober
+from portable_console.daemon.config import ConsoleConfig
+from portable_console.daemon.harness import (Harness, build_snapshot, write_json_atomic)
+from portable_console.daemon.plugins.base import Prober
 
 
 class Stub:
@@ -112,7 +112,7 @@ def test_atomic_write_is_0644_under_umask_077(tmp_path: Path) -> None:
 
 # ---------- history: rolling cap + reload from disk every poll ----------
 def test_history_caps_and_reloads(make_config: ConsoleConfig) -> None:
-    from daemon.config import HistoryConfig
+    from portable_console.daemon.config import HistoryConfig
     from dataclasses import replace
     cfg = replace(make_config, history=HistoryConfig(max_samples=2))
     h = Harness(cfg, collectors=[Stub("system", {"load_1m": 1.0})])

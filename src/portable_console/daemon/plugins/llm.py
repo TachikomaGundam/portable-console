@@ -41,10 +41,10 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
-from daemon.plugins.base import run_argv, write_json_atomic
+from portable_console.daemon.plugins.base import run_argv, write_json_atomic
 
 if False:  # pragma: no cover - type-only
-    from daemon.config import ConsoleConfig
+    from portable_console.daemon.config import ConsoleConfig
 
 # ---------- constants (source-parity) ----------
 TAIL_LINES = 1500           # llama log history for error/progress detection

@@ -14,15 +14,16 @@ import os
 import signal
 import sys
 import time
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
-from daemon.config import ConsoleConfig, load as load_config
-from daemon.plugins import ipmi as ipmi_mod
-from daemon.plugins import llm as llm_mod
-from daemon.plugins import nvidia as nvidia_mod
-from daemon.plugins import system as system_mod
-from daemon.plugins.base import Collector, Prober, write_json_atomic
+from portable_console.daemon.config import ConsoleConfig, load as load_config
+from portable_console.daemon.plugins import ipmi as ipmi_mod
+from portable_console.daemon.plugins import llm as llm_mod
+from portable_console.daemon.plugins import nvidia as nvidia_mod
+from portable_console.daemon.plugins import system as system_mod
+from portable_console.daemon.plugins.base import Collector, Prober, write_json_atomic
 
 HEALTH_FILE = "health.json"
 HISTORY_FILE = "health.history.json"
@@ -237,9 +238,15 @@ def run_forever(cfg: ConsoleConfig) -> int:
     return 0
 
 
-def run_once_cli(config_path: str | Path) -> int:
-    """One-shot mode: collect + write artifacts, print health path."""
+def run_once_cli(config_path: str | Path, data_dir: Path | None = None) -> int:
+    """One-shot mode: collect + write artifacts, print health path.
+
+    v0.2.0: optional `data_dir` override (cli `--data`) applied on top of the
+    loaded config; behavior with data_dir=None is exactly the old one.
+    """
     cfg = load_config(config_path)
+    if data_dir is not None:
+        cfg = replace(cfg, data_dir=Path(data_dir))
     health = Harness(cfg).run_once()
     print(f"health written: {cfg.data_dir / HEALTH_FILE} "
           f"(sections: {sorted(health.keys())})")

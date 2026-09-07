@@ -7,9 +7,9 @@ from dataclasses import replace
 
 import pytest
 
-from daemon.config import (BmcConfig, ConsoleConfig, IpmiPluginConfig)
-from daemon.plugins import ipmi
-from daemon.plugins.ipmi import IpmiCollector
+from portable_console.daemon.config import (BmcConfig, ConsoleConfig, IpmiPluginConfig)
+from portable_console.daemon.plugins import ipmi
+from portable_console.daemon.plugins.ipmi import IpmiCollector
 
 # Supermicro `ipmitool sdr type Fan` emits five pipe columns:
 # name | sensor-hex | status | entity | "N RPM" (source:691-696; sample

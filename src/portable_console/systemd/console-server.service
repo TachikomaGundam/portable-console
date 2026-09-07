@@ -1,0 +1,26 @@
+# Portable Console — Web 门户服务（user unit 模板）
+# 注意：%B_PLACEHOLDER 由 install.sh 用 sed 替换为 bundle 绝对路径
+#（systemd user unit 不支持 %b，故使用占位符渲染）
+#
+# v0.2.0 packaging: 模板随 portable_console 包分发，由 `portable-console
+# install`（python 渲染，取代 install.sh 的 sed）替换以下三个占位符
+# （书写时刻意不带百分号包围，避免整文件占位符残留检查误报）：
+#   RUN  -> 完整 ExecStart（portable-console serve --config <CFG>）
+#   DIR  -> WorkingDirectory（配置文件的 root_dir）
+#   ENV  -> 源码树回退时补一行 Environment=PYTHONPATH=<src>，否则为空
+# 旧 %B_PLACEHOLDER 流程已被取代（历史保留于上方注释）。
+
+[Unit]
+Description=Portable Console server (static portal + /api/*)
+
+[Service]
+Type=simple
+ExecStart=%RUN%
+WorkingDirectory=%DIR%
+%ENV%
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target

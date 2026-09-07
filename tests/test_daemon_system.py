@@ -10,9 +10,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from daemon.config import ConsoleConfig
-from daemon.plugins import system
-from daemon.plugins.system import SystemCollector
+from portable_console.daemon.config import ConsoleConfig
+from portable_console.daemon.plugins import system
+from portable_console.daemon.plugins.system import SystemCollector
 
 MOUNTS = "\n".join([
     "/dev/sda2 / ext4 rw,relatime 0 0",
